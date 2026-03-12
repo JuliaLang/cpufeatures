@@ -39,7 +39,7 @@ const char *cpu_name_at(unsigned idx) {
     return idx < num_cpus ? cpu_table[idx].name : nullptr;
 }
 
-unsigned llvm_version_major() {
+unsigned tables_version_major() {
 #ifdef TARGET_TABLES_LLVM_VERSION_MAJOR
     return TARGET_TABLES_LLVM_VERSION_MAJOR;
 #else

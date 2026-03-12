@@ -14,7 +14,7 @@ namespace tp::x86_64 {
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
-    unsigned llvm_version_major();
+    unsigned tables_version_major();
 }
 
 namespace tp::aarch64 {
@@ -26,7 +26,7 @@ namespace tp::aarch64 {
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
-    unsigned llvm_version_major();
+    unsigned tables_version_major();
 }
 
 namespace tp::riscv64 {
@@ -38,7 +38,7 @@ namespace tp::riscv64 {
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
-    unsigned llvm_version_major();
+    unsigned tables_version_major();
 }
 
 namespace tp {
@@ -107,8 +107,8 @@ const char *cross_cpu_name(const char *arch, unsigned idx) {
     return nullptr;
 }
 
-unsigned cross_llvm_version_major(const char *arch) {
-    DISPATCH(arch, llvm_version_major);
+unsigned cross_tables_version_major(const char *arch) {
+    DISPATCH(arch, tables_version_major);
     return 0;
 }
 

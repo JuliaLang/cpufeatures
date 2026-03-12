@@ -160,7 +160,7 @@ int main() {
                    arch, tp::cross_num_features(arch),
                    tp::cross_num_cpus(arch),
                    tp::cross_feature_words(arch));
-            unsigned llvm_ver = tp::cross_llvm_version_major(arch);
+            unsigned llvm_ver = tp::cross_tables_version_major(arch);
             if (llvm_ver) printf(", LLVM %u", llvm_ver);
             printf("\n");
         }

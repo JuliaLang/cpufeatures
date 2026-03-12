@@ -48,10 +48,9 @@ bool cross_feature_is_hw(const char *arch, const char *name);
 // Get a CPU name by index for an architecture.
 const char *cross_cpu_name(const char *arch, unsigned idx);
 
-// Get the LLVM version the tables were generated from.
-// Returns the value from TARGET_TABLES_LLVM_VERSION_MAJOR for the given arch,
-// or 0 if unknown. All arches should have the same version.
-unsigned cross_llvm_version_major(const char *arch);
+// Get the major version of the compiler toolchain the tables were generated from.
+// Returns 0 if unknown. All arches should have the same version.
+unsigned cross_tables_version_major(const char *arch);
 
 } // namespace tp
 
