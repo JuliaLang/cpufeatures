@@ -11,6 +11,7 @@ namespace tp::x86_64 {
     unsigned nfeatures();
     unsigned ncpus();
     const char *feature_name_at(unsigned idx);
+    int feature_bit_at(unsigned idx);
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
@@ -23,6 +24,7 @@ namespace tp::aarch64 {
     unsigned nfeatures();
     unsigned ncpus();
     const char *feature_name_at(unsigned idx);
+    int feature_bit_at(unsigned idx);
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
@@ -35,6 +37,7 @@ namespace tp::riscv64 {
     unsigned nfeatures();
     unsigned ncpus();
     const char *feature_name_at(unsigned idx);
+    int feature_bit_at(unsigned idx);
     int feature_bit_by_name(const char *name);
     bool feature_is_hw_by_name(const char *name);
     const char *cpu_name_at(unsigned idx);
@@ -90,6 +93,11 @@ unsigned cross_num_cpus(const char *arch) {
 const char *cross_feature_name(const char *arch, unsigned idx) {
     DISPATCH(arch, feature_name_at, idx);
     return nullptr;
+}
+
+int cross_feature_bit_at(const char *arch, unsigned idx) {
+    DISPATCH(arch, feature_bit_at, idx);
+    return -1;
 }
 
 int cross_feature_bit(const char *arch, const char *name) {

@@ -34,9 +34,13 @@ unsigned cross_num_features(const char *arch);
 // Get the number of CPUs for an architecture.
 unsigned cross_num_cpus(const char *arch);
 
-// Get a feature name by index for an architecture.
+// Get a feature name by table index for an architecture.
 // Returns nullptr if out of range or unknown arch.
 const char *cross_feature_name(const char *arch, unsigned idx);
+
+// Get a feature's bit index by table index for an architecture.
+// Returns -1 if out of range or unknown arch.
+int cross_feature_bit_at(const char *arch, unsigned idx);
 
 // Get a feature's bit index by name for an architecture.
 // Returns -1 if not found.

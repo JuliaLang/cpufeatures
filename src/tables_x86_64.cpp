@@ -25,6 +25,10 @@ const char *feature_name_at(unsigned idx) {
     return idx < num_features ? feature_table[idx].name : nullptr;
 }
 
+int feature_bit_at(unsigned idx) {
+    return idx < num_features ? static_cast<int>(feature_table[idx].bit) : -1;
+}
+
 int feature_bit_by_name(const char *name) {
     const FeatureEntry *fe = find_feature(name);
     return fe ? static_cast<int>(fe->bit) : -1;
