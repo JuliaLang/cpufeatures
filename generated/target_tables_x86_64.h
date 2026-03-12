@@ -306,7 +306,7 @@ static const FeatureEntry feature_table[] = {
     { "amx-tile", "Support AMX-TILE instructions", 10, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "amx-transpose", "Support AMX amx-transpose instructions", 11, 1, { { 0x400ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx", "Enable AVX instructions", 12, 1, { { 0x0ULL, 0x20000000000ULL, 0x0ULL, 0x0ULL } } },
-    { "avx10.1-256", "Support AVX10.1 up to 256-bit instruction", 14, 1, { { 0x202000043000000ULL, 0x960000000000000ULL, 0x0ULL, 0x0ULL } } },
+    { "avx10.1-256", "Support AVX10.1 up to 256-bit instruction", 14, 0, { { 0x202000043000000ULL, 0x960000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.1-512", "Support AVX10.1 up to 512-bit instruction", 15, 1, { { 0x200000004000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.2-256", "Support AVX10.2 up to 256-bit instruction", 16, 1, { { 0x4000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.2-512", "Support AVX10.2 up to 512-bit instruction", 17, 1, { { 0x18000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -347,7 +347,7 @@ static const FeatureEntry feature_table[] = {
     { "cx8", "Support CMPXCHG8B instructions", 39, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "egpr", "Support extended general purpose register", 42, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "enqcmd", "Has ENQCMD instructions", 43, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "ermsb", "REP MOVS/STOS are fast", 44, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "ermsb", "REP MOVS/STOS are fast", 44, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "evex512", "Support ZMM and 64-bit mask instructions", 45, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "f16c", "Support 16-bit floating point conversion instructions", 46, 1, { { 0x1000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "false-deps-getmant", "VGETMANTSS/SD/SH and VGETMANDPS/PD(memory version) has a false dependency on dest register", 160, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -378,7 +378,7 @@ static const FeatureEntry feature_table[] = {
     { "fma", "Enable three-operand fused multiple-add", 47, 1, { { 0x1000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "fma4", "Enable four-operand fused multiple-add", 48, 1, { { 0x1000ULL, 0x8000000000ULL, 0x0ULL, 0x0ULL } } },
     { "fsgsbase", "Support FS/GS Base instructions", 50, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "fsrm", "REP MOVSB of short lengths is faster", 51, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "fsrm", "REP MOVSB of short lengths is faster", 51, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "fxsr", "Support fxsave/fxrestore instructions", 52, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "gfni", "Enable Galois Field Arithmetic Instructions", 53, 1, { { 0x0ULL, 0x2000000000ULL, 0x0ULL, 0x0ULL } } },
     { "harden-sls-ijmp", "Harden against straight line speculation across indirect JMP instructions.", 55, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -408,7 +408,7 @@ static const FeatureEntry feature_table[] = {
     { "no-bypass-delay-blend", "Has no bypass delay when using the 'wrong' blend type", 169, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "no-bypass-delay-mov", "Has no bypass delay when using the 'wrong' mov type", 170, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "no-bypass-delay-shuffle", "Has no bypass delay when using the 'wrong' shuffle type", 171, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "nopl", "Enable NOPL instruction (generally pentium pro+)", 73, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "nopl", "Enable NOPL instruction (generally pentium pro+)", 73, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pad-short-functions", "Pad short functions (to prevent a stall when returning too early)", 174, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pclmul", "Enable packed carry-less multiplication instructions", 74, 1, { { 0x0ULL, 0x2000000000ULL, 0x0ULL, 0x0ULL } } },
     { "pconfig", "platform configuration instruction", 75, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -425,7 +425,7 @@ static const FeatureEntry feature_table[] = {
     { "prfchw", "Support PRFCHW instructions", 80, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ptwrite", "Support ptwrite instruction", 81, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "push2pop2", "Support PUSH2/POP2 instructions", 82, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "raoint", "Support RAO-INT instructions", 83, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "raoint", "Support RAO-INT instructions", 83, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rdpid", "Support RDPID instructions", 84, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rdpru", "Support RDPRU instructions", 85, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rdrnd", "Support RDRAND instruction", 86, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -434,12 +434,12 @@ static const FeatureEntry feature_table[] = {
     { "retpoline-external-thunk", "When lowering an indirect call or branch using a `retpoline`, rely on the specified user provided thunk rather than emitting one ourselves. Only has effect when combined with some other retpoline feature", 90, 0, { { 0x0ULL, 0x10000000ULL, 0x0ULL, 0x0ULL } } },
     { "retpoline-indirect-branches", "Remove speculation of indirect branches from the generated code", 91, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "retpoline-indirect-calls", "Remove speculation of indirect calls from the generated code", 92, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "rtm", "Support RTM instructions", 88, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "rtm", "Support RTM instructions", 88, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "sahf", "Support LAHF and SAHF instructions in 64-bit mode", 60, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "sbb-dep-breaking", "SBB with same register has no source dependency", 183, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "serialize", "Has serialize instruction", 93, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "seses", "Prevent speculative execution side channel timing attacks by inserting a speculation barrier before memory reads, memory writes, and conditional branches. Implies LVI Control Flow integrity.", 109, 0, { { 0x2000000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "sgx", "Enable Software Guard Extensions", 94, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "sgx", "Enable Software Guard Extensions", 94, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "sha", "Enable SHA instructions", 95, 1, { { 0x0ULL, 0x2000000000ULL, 0x0ULL, 0x0ULL } } },
     { "sha512", "Support SHA512 instructions", 96, 1, { { 0x2000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "shstk", "Support CET Shadow-Stack instructions", 97, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -477,7 +477,7 @@ static const FeatureEntry feature_table[] = {
     { "waitpkg", "Wait and pause enhancements", 124, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "wbnoinvd", "Write Back No Invalidate", 125, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "widekl", "Support Key Locker wide Instructions", 126, 1, { { 0x800000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "x87", "Enable X87 float instructions", 128, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "x87", "Enable X87 float instructions", 128, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "xop", "Enable XOP instructions", 129, 1, { { 0x1000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "xsave", "Support xsave instructions", 130, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "xsavec", "Support xsavec instructions", 131, 1, { { 0x0ULL, 0x0ULL, 0x4ULL, 0x0ULL } } },
@@ -489,7 +489,7 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 196;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x9e77efffffffffffULL, 0xfff6cbffe1fffdffULL, 0x7eULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x9e7fffffffffbfffULL, 0xfff6cbffa0f7ffffULL, 0x7fULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {

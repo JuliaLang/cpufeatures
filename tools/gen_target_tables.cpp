@@ -146,29 +146,36 @@ static void emitFeatureBits(raw_ostream &OS, const FeatureBitset &Bits, unsigned
 
 static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
                                     ArrayRef<SubtargetSubTypeKV> CPUs) {
-    // Strategy: a feature is "hardware" (CPUID-detectable) if it appears
-    // in sys::getHostCPUFeatures() - which only reports real ISA extensions.
-    // For cross-targets where we can't call getHostCPUFeatures, we use:
-    // - Features in CPU Implies but NOT in TuneImplies are hardware candidates
-    // - Then filter out mode flags (Is16Bit, Is32Bit, Is64Bit, etc.)
-    //   and internal flags (ermsb, nopl, etc.) by checking if they're
-    //   known CPUID features.
-    //
-    // The most robust approach: check sys::getHostCPUFeatures() and also
-    // check by name pattern for the cross case.
+    // A feature is "hardware" if it appears in some CPU's Implies
+    // (ISA features set by the CPU definition) but NOT only in TuneImplies
+    // (scheduling/tuning hints). This works for all architectures without
+    // needing host CPU detection.
 
-    auto HostFeatures = sys::getHostCPUFeatures();
+    FeatureBitset ImpliedByAnyCPU;
+    FeatureBitset TuneOnlyBits;
 
-    FeatureBitset HWMask;
-    for (const auto &F : Features) {
-        StringRef Name(F.Key);
-        if (HostFeatures.count(Name)) {
-            // Known to sys::getHostCPUFeatures - definitely hardware
-            HWMask.set(F.Value);
-        }
-        // Don't include features not in the host map - they may be
-        // tuning hints, mode flags, or features for other microarchitectures
+    // Collect all bits that appear in any CPU's Implies
+    for (const auto &CPU : CPUs) {
+        ImpliedByAnyCPU |= CPU.Implies.getAsBitset();
     }
+
+    // Collect all bits that appear ONLY in TuneImplies (never in Implies)
+    for (const auto &CPU : CPUs) {
+        TuneOnlyBits |= CPU.TuneImplies.getAsBitset();
+    }
+
+    // Hardware = implied by some CPU, but not exclusively a tuning feature.
+    // Also include features that are implied by other hardware features
+    // (via the feature implication chain).
+    FeatureBitset HWMask = ImpliedByAnyCPU & ~(TuneOnlyBits & ~ImpliedByAnyCPU);
+
+    // Also add any feature that is implied by a hardware feature
+    for (const auto &F : Features) {
+        if (HWMask.test(F.Value)) {
+            HWMask |= F.Implies.getAsBitset();
+        }
+    }
+
     return HWMask;
 }
 

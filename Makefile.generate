@@ -45,8 +45,9 @@ all: $(GENDIR)/target_tables_x86_64.h $(GENDIR)/target_tables_aarch64.h $(GENDIR
 # Download LLVM release (only if not using LLVM_PREFIX override)
 $(LLVM_DL)/.downloaded: | $(BUILDDIR)
 	@echo "Downloading LLVM $(LLVM_VER)..."
-	curl -sL $(LLVM_RELEASE_URL) | tar xJ -C $(BUILDDIR)
-	mv $(BUILDDIR)/LLVM-$(LLVM_VER)-Linux-X64 $(LLVM_DL)
+	rm -rf $(LLVM_DL)
+	mkdir -p $(LLVM_DL)
+	curl -fSL $(LLVM_RELEASE_URL) | tar xJ --strip-components=1 -C $(LLVM_DL)
 	touch $@
 
 download: $(LLVM_DL)/.downloaded
