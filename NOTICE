@@ -1,0 +1,13 @@
+cpufeatures
+Copyright (c) 2026 Gabriel Baraldi
+
+This project includes data and code derived from the LLVM Project
+(https://llvm.org), which is licensed under the Apache License v2.0
+with LLVM Exceptions. See https://llvm.org/LICENSE.txt for details.
+
+Specifically:
+- The generated headers in generated/ are produced by processing LLVM's
+  TableGen CPU/feature definitions at build time.
+- The host detection code in src/host_*.cpp is based on logic from
+  LLVM's lib/TargetParser/Host.cpp.
+- The generator tool in tools/ links against LLVM libraries.
