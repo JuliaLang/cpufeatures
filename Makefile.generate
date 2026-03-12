@@ -12,6 +12,7 @@ LLVM_LDFLAGS := $(shell $(LLVM_CONFIG) --ldflags --libs \
 	mc core support targetparser \
 	x86desc x86info aarch64desc aarch64info riscvdesc riscvinfo \
 	2>/dev/null)
+LLVM_SYSTEM_LIBS := $(shell $(LLVM_CONFIG) --system-libs 2>/dev/null)
 
 CXX ?= g++
 
@@ -32,7 +33,7 @@ all: $(patsubst %,$(GENDIR)/target_tables_%.h,$(foreach t,$(TRIPLES),$(word 1,$(
 
 # Build the generator tool (links LLVM)
 $(GEN_TOOL): $(TOOLDIR)/gen_target_tables.cpp | $(BUILDDIR)
-	$(CXX) $(LLVM_CXXFLAGS) -o $@ $< $(LLVM_LDFLAGS)
+	$(CXX) $(LLVM_CXXFLAGS) -o $@ $< $(LLVM_LDFLAGS) $(LLVM_SYSTEM_LIBS)
 
 # Generate table headers
 $(GENDIR)/target_tables_x86_64.h: $(GEN_TOOL) | $(GENDIR)
