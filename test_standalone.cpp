@@ -10,8 +10,7 @@
 #endif
 #include "target_parsing.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
 
 static void print_hw_features(const FeatureBits *bits) {
     int first = 1;
@@ -27,19 +26,18 @@ static void print_hw_features(const FeatureBits *bits) {
 
 static void test_parse(const char *target_str) {
     printf("\n--- Parsing: \"%s\" ---\n", target_str);
-    ParsedTarget parsed[MAX_TARGETS];
-    int n = tp_parse_target_string(target_str, parsed, MAX_TARGETS);
-    printf("  %d target(s) parsed\n", n);
+    auto parsed = tp::parse_target_string(target_str);
+    printf("  %zu target(s) parsed\n", parsed.size());
 
-    for (int i = 0; i < n; i++) {
-        printf("  [%d] cpu=%s", i, parsed[i].cpu_name);
+    for (size_t i = 0; i < parsed.size(); i++) {
+        printf("  [%zu] cpu=%s", i, parsed[i].cpu_name.c_str());
         if (parsed[i].flags) printf(" flags=0x%x", parsed[i].flags);
         if (parsed[i].base >= 0) printf(" base=%d", parsed[i].base);
-        if (parsed[i].num_extra_features > 0) {
+        if (!parsed[i].extra_features.empty()) {
             printf(" features={");
-            for (unsigned j = 0; j < parsed[i].num_extra_features; j++) {
+            for (size_t j = 0; j < parsed[i].extra_features.size(); j++) {
                 if (j) printf(",");
-                printf("%s", parsed[i].extra_features[j]);
+                printf("%s", parsed[i].extra_features[j].c_str());
             }
             printf("}");
         }
@@ -47,24 +45,22 @@ static void test_parse(const char *target_str) {
     }
 
     // Resolve
-    ResolvedTarget resolved[MAX_TARGETS];
-    tp_resolve_targets(parsed, n, resolved, NULL, NULL);
+    auto resolved = tp::resolve_targets(parsed);
 
-    for (int i = 0; i < n; i++) {
-        printf("  Target %d: cpu=%s base=%d flags=0x%x\n",
-               i, resolved[i].cpu_name, resolved[i].base, resolved[i].flags);
+    for (size_t i = 0; i < resolved.size(); i++) {
+        printf("  Target %zu: cpu=%s base=%d flags=0x%x\n",
+               i, resolved[i].cpu_name.c_str(), resolved[i].base, resolved[i].flags);
         printf("    features: ");
         print_hw_features(&resolved[i].features);
-        if (resolved[i].ext_features[0])
-            printf("    ext: %s\n", resolved[i].ext_features);
+        if (!resolved[i].ext_features.empty())
+            printf("    ext: %s\n", resolved[i].ext_features.c_str());
     }
 
     // Get specs
-    TargetSpec specs[MAX_TARGETS];
-    tp_get_target_specs(resolved, n, specs);
-    for (int i = 0; i < n; i++) {
-        printf("  Spec %d: cpu=%s features=\"%s\"\n",
-               i, specs[i].cpu_name, specs[i].cpu_features);
+    auto specs = tp::get_target_specs(resolved);
+    for (size_t i = 0; i < specs.size(); i++) {
+        printf("  Spec %zu: cpu=%s features=\"%s\"\n",
+               i, specs[i].cpu_name.c_str(), specs[i].cpu_features.c_str());
     }
 }
 
@@ -74,19 +70,15 @@ int main() {
     printf("Database: %u features, %u CPUs\n\n", num_features, num_cpus);
 
     // Host detection
-    printf("Host CPU: %s\n", tp_get_host_cpu_name());
-    FeatureBits host_features;
-    tp_get_host_features(&host_features);
+    printf("Host CPU: %s\n", tp::get_host_cpu_name().c_str());
+    auto host_features = tp::get_host_features();
     printf("Host features: ");
     print_hw_features(&host_features);
 
     // Check a few specific features
-    const FeatureEntry *avx2 = find_feature("avx2");
-    const FeatureEntry *avx512f = find_feature("avx512f");
-    const FeatureEntry *sse42 = find_feature("sse4.2");
-    printf("\nHost has AVX2: %s\n", avx2 && feature_test(&host_features, avx2->bit) ? "yes" : "no");
-    printf("Host has AVX512F: %s\n", avx512f && feature_test(&host_features, avx512f->bit) ? "yes" : "no");
-    printf("Host has SSE4.2: %s\n", sse42 && feature_test(&host_features, sse42->bit) ? "yes" : "no");
+    printf("\nHost has AVX2: %s\n", tp::has_feature(host_features, "avx2") ? "yes" : "no");
+    printf("Host has AVX512F: %s\n", tp::has_feature(host_features, "avx512f") ? "yes" : "no");
+    printf("Host has SSE4.2: %s\n", tp::has_feature(host_features, "sse4.2") ? "yes" : "no");
 
     // CPU lookups
     printf("\n--- CPU lookup test ---\n");
@@ -102,6 +94,7 @@ int main() {
 
     // Feature implications
     printf("\n--- Feature implications ---\n");
+    const FeatureEntry *avx512f = find_feature("avx512f");
     if (avx512f) {
         printf("avx512f implies: ");
         int first = 1;
@@ -125,37 +118,33 @@ int main() {
     // Sysimage matching
     printf("\n--- Sysimage matching ---\n");
     {
-        ParsedTarget parsed[MAX_TARGETS];
-        ResolvedTarget resolved[MAX_TARGETS];
-        int n = tp_parse_target_string("generic;haswell;skylake-avx512", parsed, MAX_TARGETS);
-        tp_resolve_targets(parsed, n, resolved, NULL, NULL);
+        auto parsed = tp::parse_target_string("generic;haswell;skylake-avx512");
+        auto resolved = tp::resolve_targets(parsed);
 
-        const char *host_cpu = tp_get_host_cpu_name();
-        int match = tp_match_sysimg_target(resolved, n, &host_features, host_cpu);
-        printf("  Host: %s\n", host_cpu);
+        const auto &host_cpu = tp::get_host_cpu_name();
+        int match = tp::match_sysimg_target(resolved, host_features, host_cpu);
+        printf("  Host: %s\n", host_cpu.c_str());
         printf("  Best match: target %d (%s)\n", match,
-               match >= 0 ? resolved[match].cpu_name : "none");
+               match >= 0 ? resolved[match].cpu_name.c_str() : "none");
     }
 
     // Clone flags
     printf("\n--- Clone flags ---\n");
     {
-        ParsedTarget parsed[MAX_TARGETS];
-        ResolvedTarget resolved[MAX_TARGETS];
-        int n = tp_parse_target_string("generic;haswell;skylake-avx512", parsed, MAX_TARGETS);
-        tp_resolve_targets(parsed, n, resolved, NULL, NULL);
-        tp_compute_clone_flags(resolved, n);
+        auto parsed = tp::parse_target_string("generic;haswell;skylake-avx512");
+        auto resolved = tp::resolve_targets(parsed);
+        tp::compute_clone_flags(resolved);
 
-        for (int i = 0; i < n; i++) {
-            printf("  Target %d (%s): flags=", i, resolved[i].cpu_name);
+        for (size_t i = 0; i < resolved.size(); i++) {
+            printf("  Target %zu (%s): flags=", i, resolved[i].cpu_name.c_str());
             uint32_t f = resolved[i].flags;
-            if (f & TF_CLONE_ALL)  printf("CLONE_ALL ");
-            if (f & TF_CLONE_MATH) printf("CLONE_MATH ");
-            if (f & TF_CLONE_LOOP) printf("CLONE_LOOP ");
-            if (f & TF_CLONE_SIMD) printf("CLONE_SIMD ");
-            if (f & TF_CLONE_CPU)  printf("CLONE_CPU ");
-            if (f & TF_CLONE_FLOAT16)  printf("CLONE_FLOAT16 ");
-            if (f & TF_CLONE_BFLOAT16) printf("CLONE_BFLOAT16 ");
+            if (f & tp::TF_CLONE_ALL)  printf("CLONE_ALL ");
+            if (f & tp::TF_CLONE_MATH) printf("CLONE_MATH ");
+            if (f & tp::TF_CLONE_LOOP) printf("CLONE_LOOP ");
+            if (f & tp::TF_CLONE_SIMD) printf("CLONE_SIMD ");
+            if (f & tp::TF_CLONE_CPU)  printf("CLONE_CPU ");
+            if (f & tp::TF_CLONE_FLOAT16)  printf("CLONE_FLOAT16 ");
+            if (f & tp::TF_CLONE_BFLOAT16) printf("CLONE_BFLOAT16 ");
             if (f == 0) printf("(none)");
             printf("\n");
         }

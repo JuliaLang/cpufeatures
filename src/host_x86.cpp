@@ -5,7 +5,6 @@
 #include "target_tables_x86_64.h"
 #include "target_parsing.h"
 
-#include <string>
 #include <cstring>
 #include <cpuid.h>
 
@@ -153,9 +152,11 @@ static const char *detect_amd_cpu(const CPUModel &m) {
     }
 }
 
-const char *tp_get_host_cpu_name(void) {
+namespace tp {
+
+const std::string &get_host_cpu_name() {
     static std::string cpu_name;
-    if (!cpu_name.empty()) return cpu_name.c_str();
+    if (!cpu_name.empty()) return cpu_name;
 
     Vendor v = get_vendor();
     CPUModel m = get_cpu_model();
@@ -172,7 +173,7 @@ const char *tp_get_host_cpu_name(void) {
         name = "generic";
 
     cpu_name = name;
-    return cpu_name.c_str();
+    return cpu_name;
 }
 
 // ============================================================================
@@ -290,8 +291,8 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {0x80000008, 0, CPUIDBitMapping::EBX, 9, "wbnoinvd"},
 };
 
-void tp_get_host_features(FeatureBits *features) {
-    std::memset(features, 0, sizeof(FeatureBits));
+FeatureBits get_host_features() {
+    FeatureBits features{};
 
     unsigned max_leaf = cpuid_max_leaf();
     unsigned max_ext = cpuid_max_ext_leaf();
@@ -302,11 +303,10 @@ void tp_get_host_features(FeatureBits *features) {
     };
     for (const char *name : baseline_features) {
         const FeatureEntry *f = find_feature(name);
-        if (f) feature_set(features, f->bit);
+        if (f) feature_set(&features, f->bit);
     }
 
-    // Walk the table, issuing CPUID only when needed
-    // Cache CPUID results to avoid redundant calls
+    // Walk the table, cache CPUID results to avoid redundant calls
     struct {
         unsigned leaf, subleaf;
         CPUIDResult result;
@@ -315,12 +315,10 @@ void tp_get_host_features(FeatureBits *features) {
     unsigned cache_count = 0;
 
     for (const auto &entry : cpuid_features) {
-        // Check if this leaf is available
         bool is_ext = (entry.leaf >= 0x80000000);
         unsigned max = is_ext ? max_ext : max_leaf;
         if (entry.leaf > max) continue;
 
-        // Look up or cache the CPUID result
         CPUIDResult r = {};
         bool found = false;
         for (unsigned c = 0; c < cache_count; c++) {
@@ -348,16 +346,19 @@ void tp_get_host_features(FeatureBits *features) {
 
         if (reg_val & (1u << entry.bit)) {
             const FeatureEntry *f = find_feature(entry.feature_name);
-            if (f) feature_set(features, f->bit);
+            if (f) feature_set(&features, f->bit);
         }
     }
 
     // AVX-512 implies evex512
     const FeatureEntry *avx512f = find_feature("avx512f");
-    if (avx512f && feature_test(features, avx512f->bit)) {
+    if (avx512f && feature_test(&features, avx512f->bit)) {
         const FeatureEntry *evex512 = find_feature("evex512");
-        if (evex512) feature_set(features, evex512->bit);
+        if (evex512) feature_set(&features, evex512->bit);
     }
 
-    expand_implied(features);
+    expand_implied(&features);
+    return features;
 }
+
+} // namespace tp

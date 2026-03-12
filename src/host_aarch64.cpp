@@ -4,9 +4,7 @@
 
 #include "target_tables_aarch64.h"
 #include "target_parsing.h"
-#include "target_internal.h"
 
-#include <string>
 #include <cstring>
 
 #if defined(__APPLE__)
@@ -36,9 +34,11 @@
 #define CPUFAMILY_ARM_TAHITI             0x75d4acb9
 #define CPUFAMILY_ARM_TUPAI              0x204526d0
 
-const char *tp_get_host_cpu_name(void) {
+namespace tp {
+
+const std::string &get_host_cpu_name() {
     static std::string cpu_name;
-    if (!cpu_name.empty()) return cpu_name.c_str();
+    if (!cpu_name.empty()) return cpu_name;
 
     uint32_t family = 0;
     size_t len = sizeof(family);
@@ -68,17 +68,21 @@ const char *tp_get_host_cpu_name(void) {
         name = "generic";
 
     cpu_name = name;
-    return cpu_name.c_str();
+    return cpu_name;
 }
 
-void tp_get_host_features(FeatureBits *features) {
-    std::memset(features, 0, sizeof(FeatureBits));
+FeatureBits get_host_features() {
+    FeatureBits features{};
 
-    const char *cpu = tp_get_host_cpu_name();
-    const CPUEntry *entry = find_cpu(cpu);
+    const auto &cpu = get_host_cpu_name();
+    const CPUEntry *entry = find_cpu(cpu.c_str());
     if (entry)
-        std::memcpy(features, &entry->features, sizeof(FeatureBits));
+        features = entry->features;
+
+    return features;
 }
+
+} // namespace tp
 
 // ============================================================================
 // Windows AArch64: CPU detection
@@ -86,49 +90,55 @@ void tp_get_host_features(FeatureBits *features) {
 
 #elif defined(_WIN32)
 
-const char *tp_get_host_cpu_name(void) {
-    return "generic";
+namespace tp {
+
+const std::string &get_host_cpu_name() {
+    static std::string cpu_name = "generic";
+    return cpu_name;
 }
 
-void tp_get_host_features(FeatureBits *features) {
-    std::memset(features, 0, sizeof(FeatureBits));
+FeatureBits get_host_features() {
+    FeatureBits features{};
 
     const FeatureEntry *fe;
 
-    if ((fe = find_feature("neon"))) feature_set(features, fe->bit);
-    if ((fe = find_feature("fp-armv8"))) feature_set(features, fe->bit);
+    if ((fe = find_feature("neon"))) feature_set(&features, fe->bit);
+    if ((fe = find_feature("fp-armv8"))) feature_set(&features, fe->bit);
 
     #ifndef PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
     #define PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE 31
     #endif
     if (IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("crc"))) feature_set(features, fe->bit);
+        if ((fe = find_feature("crc"))) feature_set(&features, fe->bit);
     }
 
     #ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
     #define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
     #endif
     if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("aes"))) feature_set(features, fe->bit);
-        if ((fe = find_feature("sha2"))) feature_set(features, fe->bit);
+        if ((fe = find_feature("aes"))) feature_set(&features, fe->bit);
+        if ((fe = find_feature("sha2"))) feature_set(&features, fe->bit);
     }
 
     #ifndef PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE
     #define PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE 34
     #endif
     if (IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("lse"))) feature_set(features, fe->bit);
+        if ((fe = find_feature("lse"))) feature_set(&features, fe->bit);
     }
 
     #ifndef PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
     #define PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE 43
     #endif
     if (IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("dotprod"))) feature_set(features, fe->bit);
+        if ((fe = find_feature("dotprod"))) feature_set(&features, fe->bit);
     }
 
-    expand_implied(features);
+    expand_implied(&features);
+    return features;
 }
+
+} // namespace tp
 
 // ============================================================================
 // Linux AArch64: CPU detection via /proc/cpuinfo
@@ -136,7 +146,6 @@ void tp_get_host_features(FeatureBits *features) {
 
 #else // Linux
 
-// Implementer + part -> LLVM CPU name table
 struct ArmCPUInfo {
     unsigned implementer;
     unsigned part;
@@ -185,7 +194,6 @@ static const ArmCPUInfo arm_cpus[] = {
     {0, 0, nullptr}
 };
 
-// Load and cache /proc/cpuinfo content
 static const std::string &load_cpuinfo() {
     static std::string content;
     static bool loaded = false;
@@ -200,32 +208,28 @@ static const std::string &load_cpuinfo() {
     return content;
 }
 
-// Extract a field value from cpuinfo text
 static std::string_view cpuinfo_field(std::string_view buf, std::string_view field) {
     size_t pos = 0;
     while (pos < buf.size()) {
         auto found = buf.find(field, pos);
         if (found == std::string_view::npos) break;
 
-        // Must be at start of line
         if (found > 0 && buf[found - 1] != '\n') {
             pos = found + 1;
             continue;
         }
 
         auto after = found + field.size();
-        // Skip whitespace then ':'
         while (after < buf.size() && (buf[after] == ' ' || buf[after] == '\t'))
             after++;
         if (after >= buf.size() || buf[after] != ':') {
             pos = found + 1;
             continue;
         }
-        after++; // skip ':'
+        after++;
         while (after < buf.size() && (buf[after] == ' ' || buf[after] == '\t'))
             after++;
 
-        // Find end of line
         auto eol = buf.find('\n', after);
         if (eol == std::string_view::npos) eol = buf.size();
         return buf.substr(after, eol - after);
@@ -233,37 +237,6 @@ static std::string_view cpuinfo_field(std::string_view buf, std::string_view fie
     return {};
 }
 
-const char *tp_get_host_cpu_name(void) {
-    static std::string cpu_name;
-    if (!cpu_name.empty()) return cpu_name.c_str();
-
-    const auto &info = load_cpuinfo();
-    auto impl_sv = cpuinfo_field(info, "CPU implementer");
-    auto part_sv = cpuinfo_field(info, "CPU part");
-
-    const char *name = "generic";
-    if (!impl_sv.empty() && !part_sv.empty()) {
-        unsigned impl = static_cast<unsigned>(std::strtoul(
-            std::string(impl_sv).c_str(), nullptr, 0));
-        unsigned part = static_cast<unsigned>(std::strtoul(
-            std::string(part_sv).c_str(), nullptr, 0));
-
-        for (const ArmCPUInfo *c = arm_cpus; c->name; c++) {
-            if (c->implementer == impl && c->part == part) {
-                name = c->name;
-                break;
-            }
-        }
-    }
-
-    if (!find_cpu(name))
-        name = "generic";
-
-    cpu_name = name;
-    return cpu_name.c_str();
-}
-
-// Linux feature name -> LLVM feature name mapping
 struct FeatureMap {
     const char *linux_name;
     const char *llvm_name;
@@ -296,16 +269,47 @@ static const FeatureMap aarch64_feature_map[] = {
     {nullptr, nullptr}
 };
 
-void tp_get_host_features(FeatureBits *features) {
-    std::memset(features, 0, sizeof(FeatureBits));
+namespace tp {
+
+const std::string &get_host_cpu_name() {
+    static std::string cpu_name;
+    if (!cpu_name.empty()) return cpu_name;
+
+    const auto &info = load_cpuinfo();
+    auto impl_sv = cpuinfo_field(info, "CPU implementer");
+    auto part_sv = cpuinfo_field(info, "CPU part");
+
+    const char *name = "generic";
+    if (!impl_sv.empty() && !part_sv.empty()) {
+        unsigned impl = static_cast<unsigned>(std::strtoul(
+            std::string(impl_sv).c_str(), nullptr, 0));
+        unsigned part = static_cast<unsigned>(std::strtoul(
+            std::string(part_sv).c_str(), nullptr, 0));
+
+        for (const ArmCPUInfo *c = arm_cpus; c->name; c++) {
+            if (c->implementer == impl && c->part == part) {
+                name = c->name;
+                break;
+            }
+        }
+    }
+
+    if (!find_cpu(name))
+        name = "generic";
+
+    cpu_name = name;
+    return cpu_name;
+}
+
+FeatureBits get_host_features() {
+    FeatureBits features{};
 
     const auto &info = load_cpuinfo();
     auto feat_line = cpuinfo_field(info, "Features");
-    if (feat_line.empty()) return;
+    if (feat_line.empty()) return features;
 
     bool has_aes = false, has_pmull = false, has_sha1 = false, has_sha2 = false;
 
-    // Tokenize using string_view (no strtok, no mutation)
     auto tokens = split(feat_line, ' ');
     for (auto tok : tokens) {
         if (tok == "aes") has_aes = true;
@@ -313,11 +317,10 @@ void tp_get_host_features(FeatureBits *features) {
         else if (tok == "sha1") has_sha1 = true;
         else if (tok == "sha2") has_sha2 = true;
 
-        // Map Linux name -> LLVM name
         for (const FeatureMap *m = aarch64_feature_map; m->linux_name; m++) {
             if (tok == m->linux_name) {
                 const FeatureEntry *fe = find_feature(m->llvm_name);
-                if (fe) feature_set(features, fe->bit);
+                if (fe) feature_set(&features, fe->bit);
                 break;
             }
         }
@@ -325,15 +328,18 @@ void tp_get_host_features(FeatureBits *features) {
 
     if (has_aes && has_pmull) {
         const FeatureEntry *fe = find_feature("aes");
-        if (fe) feature_set(features, fe->bit);
+        if (fe) feature_set(&features, fe->bit);
     }
 
     if (has_sha1 && has_sha2) {
         const FeatureEntry *fe = find_feature("sha2");
-        if (fe) feature_set(features, fe->bit);
+        if (fe) feature_set(&features, fe->bit);
     }
 
-    expand_implied(features);
+    expand_implied(&features);
+    return features;
 }
+
+} // namespace tp
 
 #endif // platform

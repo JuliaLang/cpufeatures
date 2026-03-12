@@ -13,36 +13,31 @@
 #endif
 
 #include "target_parsing.h"
-#include "target_internal.h"
 
 #include <cstring>
 #include <cstdio>
-#include <algorithm>
-
-// ============================================================================
-// Internal C++ parsing logic
-// ============================================================================
 
 namespace tp {
 
-static std::vector<ParsedTargetInternal> parse_target_string(std::string_view target_str) {
-    std::vector<ParsedTargetInternal> result;
+// ============================================================================
+// Target string parsing
+// ============================================================================
+
+std::vector<ParsedTarget> parse_target_string(std::string_view target_str) {
+    std::vector<ParsedTarget> result;
 
     if (target_str.empty()) {
         result.push_back({"native", 0, -1, {}});
         return result;
     }
 
-    auto targets = split(target_str, ';');
-    for (auto target_sv : targets) {
-        ParsedTargetInternal t;
+    for (auto target_sv : split(target_str, ';')) {
+        ParsedTarget t;
         auto tokens = split(target_sv, ',');
         if (tokens.empty()) continue;
 
-        // First token is the CPU name
         t.cpu_name = std::string(tokens[0]);
 
-        // Remaining tokens are flags/features
         for (size_t i = 1; i < tokens.size(); i++) {
             auto tok = tokens[i];
             if (tok == "clone_all")       t.flags |= TF_CLONE_ALL;
@@ -63,46 +58,48 @@ static std::vector<ParsedTargetInternal> parse_target_string(std::string_view ta
     return result;
 }
 
-static std::vector<ResolvedTargetInternal> resolve_targets(
-        const std::vector<ParsedTargetInternal> &parsed,
+// ============================================================================
+// Target resolution
+// ============================================================================
+
+std::vector<ResolvedTarget> resolve_targets(
+        const std::vector<ParsedTarget> &parsed,
         const FeatureBits *host_features,
         const char *host_cpu) {
 
-    std::vector<ResolvedTargetInternal> result;
+    std::vector<ResolvedTarget> result;
     result.reserve(parsed.size());
 
     for (size_t i = 0; i < parsed.size(); i++) {
-        ResolvedTargetInternal rt;
+        ResolvedTarget rt;
         rt.flags = parsed[i].flags;
         rt.base = parsed[i].base >= 0 ? parsed[i].base : (i > 0 ? 0 : -1);
 
         const auto &name = parsed[i].cpu_name;
 
-        // Resolve CPU name
         if (name == "native" || name.empty()) {
             if (host_cpu && *host_cpu)
                 rt.cpu_name = host_cpu;
             else
-                rt.cpu_name = tp_get_host_cpu_name();
+                rt.cpu_name = get_host_cpu_name();
 
             if (host_features)
-                std::memcpy(&rt.features, host_features, sizeof(FeatureBits));
+                rt.features = *host_features;
             else
-                tp_get_host_features(&rt.features);
+                rt.features = get_host_features();
         } else {
             rt.cpu_name = name;
             const CPUEntry *cpu = find_cpu(name.c_str());
             if (cpu) {
-                std::memcpy(&rt.features, &cpu->features, sizeof(FeatureBits));
+                rt.features = cpu->features;
             } else {
                 std::fprintf(stderr, "target_parsing: unknown CPU '%s'\n", name.c_str());
                 rt.flags |= TF_UNKNOWN_NAME;
                 const CPUEntry *gen = find_cpu("generic");
-                if (gen) std::memcpy(&rt.features, &gen->features, sizeof(FeatureBits));
+                if (gen) rt.features = gen->features;
             }
         }
 
-        // Apply extra features
         for (const auto &feat : parsed[i].extra_features) {
             bool enable = (feat[0] == '+');
             const char *fname = feat.c_str() + 1;
@@ -121,7 +118,6 @@ static std::vector<ResolvedTargetInternal> resolve_targets(
                     }
                 }
             } else {
-                // Unknown feature - pass through to LLVM
                 if (!rt.ext_features.empty())
                     rt.ext_features += ',';
                 rt.ext_features += feat;
@@ -134,171 +130,52 @@ static std::vector<ResolvedTargetInternal> resolve_targets(
     return result;
 }
 
-static std::string build_feature_string(const FeatureBits *features,
-                                         const FeatureBits *baseline) {
-    std::string result;
-    for (unsigned i = 0; i < num_features; i++) {
-        int in_feat = feature_test(features, feature_table[i].bit);
-        int in_base = baseline ? feature_test(baseline, feature_table[i].bit) : 0;
-
-        if (in_feat && !in_base) {
-            if (!result.empty()) result += ',';
-            result += '+';
-            result += feature_table[i].name;
-        } else if (!in_feat && in_base) {
-            if (!result.empty()) result += ',';
-            result += '-';
-            result += feature_table[i].name;
-        }
-    }
-    return result;
-}
-
-static std::vector<TargetSpecInternal> get_target_specs(
-        const std::vector<ResolvedTargetInternal> &resolved) {
-    std::vector<TargetSpecInternal> result;
-    result.reserve(resolved.size());
-
-    for (const auto &rt : resolved) {
-        TargetSpecInternal spec;
-        spec.cpu_name = rt.cpu_name;
-        spec.flags = rt.flags;
-        spec.base = rt.base;
-
-        const CPUEntry *cpu = find_cpu(rt.cpu_name.c_str());
-        const FeatureBits *baseline = cpu ? &cpu->features : nullptr;
-
-        spec.cpu_features = build_feature_string(&rt.features, baseline);
-
-        if (!rt.ext_features.empty()) {
-            if (!spec.cpu_features.empty())
-                spec.cpu_features += ',';
-            spec.cpu_features += rt.ext_features;
-        }
-
-        result.push_back(std::move(spec));
-    }
-
-    return result;
-}
-
-} // namespace tp
-
 // ============================================================================
-// extern "C" wrappers — thin shims that copy into caller's C structs
+// Clone flag computation
 // ============================================================================
 
-int tp_parse_target_string(const char *target_str,
-                           ParsedTarget *targets, int max_targets) {
-    std::string_view sv(target_str ? target_str : "");
-    auto parsed = tp::parse_target_string(sv);
-
-    // Store strings in thread_local storage so .cpu_name / .extra_features
-    // pointers remain valid until the next call.
-    thread_local std::vector<std::string> name_storage;
-    thread_local std::vector<std::string> feat_storage;
-    name_storage.clear();
-    feat_storage.clear();
-
-    int count = std::min(static_cast<int>(parsed.size()), max_targets);
-    for (int i = 0; i < count; i++) {
-        std::memset(&targets[i], 0, sizeof(ParsedTarget));
-
-        name_storage.push_back(std::move(parsed[i].cpu_name));
-        targets[i].cpu_name = name_storage.back().c_str();
-        targets[i].flags = parsed[i].flags;
-        targets[i].base = parsed[i].base;
-
-        unsigned nf = std::min(static_cast<unsigned>(parsed[i].extra_features.size()),
-                               static_cast<unsigned>(MAX_EXTRA_FEATURES));
-        for (unsigned j = 0; j < nf; j++) {
-            feat_storage.push_back(std::move(parsed[i].extra_features[j]));
-            targets[i].extra_features[j] = feat_storage.back().c_str();
-        }
-        targets[i].num_extra_features = nf;
-    }
-
-    return count;
-}
-
-int tp_resolve_targets(const ParsedTarget *parsed, int num_parsed,
-                       ResolvedTarget *resolved,
-                       const FeatureBits *host_features,
-                       const char *host_cpu) {
-    // Convert C structs to internal types
-    std::vector<ParsedTargetInternal> internal;
-    internal.reserve(num_parsed);
-    for (int i = 0; i < num_parsed; i++) {
-        ParsedTargetInternal p;
-        p.cpu_name = parsed[i].cpu_name ? parsed[i].cpu_name : "";
-        p.flags = parsed[i].flags;
-        p.base = parsed[i].base;
-        for (unsigned j = 0; j < parsed[i].num_extra_features; j++) {
-            if (parsed[i].extra_features[j])
-                p.extra_features.emplace_back(parsed[i].extra_features[j]);
-        }
-        internal.push_back(std::move(p));
-    }
-
-    auto result = tp::resolve_targets(internal, host_features, host_cpu);
-
-    int count = static_cast<int>(result.size());
-    for (int i = 0; i < count; i++) {
-        std::memset(&resolved[i], 0, sizeof(ResolvedTarget));
-        std::strncpy(resolved[i].cpu_name, result[i].cpu_name.c_str(),
-                     sizeof(resolved[i].cpu_name) - 1);
-        resolved[i].features = result[i].features;
-        resolved[i].flags = result[i].flags;
-        resolved[i].base = result[i].base;
-        std::strncpy(resolved[i].ext_features, result[i].ext_features.c_str(),
-                     sizeof(resolved[i].ext_features) - 1);
-    }
-
-    return count;
-}
-
-void tp_compute_clone_flags(ResolvedTarget *targets, int num_targets) {
-    if (num_targets <= 1) return;
+void compute_clone_flags(std::vector<ResolvedTarget> &targets) {
+    if (targets.size() <= 1) return;
 
     FeatureBits base_features = targets[0].features;
 
-    for (int i = 1; i < num_targets; i++) {
-        ResolvedTarget *t = &targets[i];
+    for (size_t i = 1; i < targets.size(); i++) {
+        auto &t = targets[i];
 
         FeatureBits diff;
-        feature_andnot(&diff, &t->features, &base_features);
+        feature_andnot(&diff, &t.features, &base_features);
 
-        t->flags |= TF_CLONE_CPU | TF_CLONE_LOOP;
+        t.flags |= TF_CLONE_CPU | TF_CLONE_LOOP;
 
 #if defined(__x86_64__) || defined(_M_X64)
-        if (has_new_feature(diff, "fma") || has_new_feature(diff, "fma4"))
-            t->flags |= TF_CLONE_MATH;
+        if (has_feature(diff, "fma") || has_feature(diff, "fma4"))
+            t.flags |= TF_CLONE_MATH;
 
-        if (has_new_feature(diff, "avx") || has_new_feature(diff, "avx2") ||
-            has_new_feature(diff, "avx512f") || has_new_feature(diff, "sse4.1"))
-            t->flags |= TF_CLONE_SIMD;
+        if (has_feature(diff, "avx") || has_feature(diff, "avx2") ||
+            has_feature(diff, "avx512f") || has_feature(diff, "sse4.1"))
+            t.flags |= TF_CLONE_SIMD;
 
-        if (has_new_feature(diff, "avx512fp16"))
-            t->flags |= TF_CLONE_FLOAT16;
-        if (has_new_feature(diff, "avx512bf16"))
-            t->flags |= TF_CLONE_BFLOAT16;
+        if (has_feature(diff, "avx512fp16"))
+            t.flags |= TF_CLONE_FLOAT16;
+        if (has_feature(diff, "avx512bf16"))
+            t.flags |= TF_CLONE_BFLOAT16;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-        if (has_new_feature(diff, "sve") || has_new_feature(diff, "sve2"))
-            t->flags |= TF_CLONE_SIMD;
+        if (has_feature(diff, "sve") || has_feature(diff, "sve2"))
+            t.flags |= TF_CLONE_SIMD;
 
-        if (has_new_feature(diff, "fullfp16"))
-            t->flags |= TF_CLONE_FLOAT16;
-        if (has_new_feature(diff, "bf16"))
-            t->flags |= TF_CLONE_BFLOAT16;
+        if (has_feature(diff, "fullfp16"))
+            t.flags |= TF_CLONE_FLOAT16;
+        if (has_feature(diff, "bf16"))
+            t.flags |= TF_CLONE_BFLOAT16;
 #elif defined(__riscv)
-        if (has_new_feature(diff, "v") || has_new_feature(diff, "zve32x") ||
-            has_new_feature(diff, "zve64d"))
-            t->flags |= TF_CLONE_SIMD;
+        if (has_feature(diff, "v") || has_feature(diff, "zve32x") ||
+            has_feature(diff, "zve64d"))
+            t.flags |= TF_CLONE_SIMD;
 
-        if (has_new_feature(diff, "zfh"))
-            t->flags |= TF_CLONE_FLOAT16;
-        if (has_new_feature(diff, "zvfbfmin"))
-            t->flags |= TF_CLONE_BFLOAT16;
+        if (has_feature(diff, "zfh"))
+            t.flags |= TF_CLONE_FLOAT16;
+        if (has_feature(diff, "zvfbfmin"))
+            t.flags |= TF_CLONE_BFLOAT16;
 #endif
     }
 }
@@ -307,24 +184,24 @@ void tp_compute_clone_flags(ResolvedTarget *targets, int num_targets) {
 // Vector register size detection (for dispatch tie-breaking)
 // ============================================================================
 
-static unsigned get_vector_reg_size(const FeatureBits *bits) {
+static unsigned get_vector_reg_size(const FeatureBits &bits) {
 #if defined(__x86_64__) || defined(_M_X64)
-    if (has_new_feature(*bits, "avx512f")) {
-        if (!find_feature("evex512") || has_new_feature(*bits, "evex512"))
+    if (has_feature(bits, "avx512f")) {
+        if (!find_feature("evex512") || has_feature(bits, "evex512"))
             return 512;
         return 256;
     }
-    if (has_new_feature(*bits, "avx"))
+    if (has_feature(bits, "avx"))
         return 256;
     return 128;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    if (has_new_feature(*bits, "sve"))
+    if (has_feature(bits, "sve"))
         return 2048;
     return 128;
 #elif defined(__riscv)
-    if (has_new_feature(*bits, "v") || has_new_feature(*bits, "zve64d"))
+    if (has_feature(bits, "v") || has_feature(bits, "zve64d"))
         return 1024;
-    if (has_new_feature(*bits, "zve32x"))
+    if (has_feature(bits, "zve32x"))
         return 256;
     return 0;
 #else
@@ -336,26 +213,26 @@ static unsigned get_vector_reg_size(const FeatureBits *bits) {
 // Sysimage target matching
 // ============================================================================
 
-int tp_match_sysimg_target(const ResolvedTarget *targets, int num_targets,
-                           const FeatureBits *host_features,
-                           const char *host_cpu) {
-    if (num_targets == 0) return -1;
+int match_sysimg_target(const std::vector<ResolvedTarget> &targets,
+                        const FeatureBits &host_features,
+                        std::string_view host_cpu) {
+    if (targets.empty()) return -1;
 
     int best_idx = 0;
     int best_name_match = 0;
     unsigned best_vec_size = 0;
     unsigned best_feat_count = 0;
 
-    for (int i = 0; i < num_targets; i++) {
+    for (int i = 0; i < static_cast<int>(targets.size()); i++) {
         FeatureBits target_hw, host_hw, missing;
         feature_and_out(&target_hw, &targets[i].features, &hw_feature_mask);
-        feature_and_out(&host_hw, host_features, &hw_feature_mask);
+        feature_and_out(&host_hw, &host_features, &hw_feature_mask);
         feature_andnot(&missing, &target_hw, &host_hw);
         if (feature_any(&missing))
             continue;
 
-        int name_match = (host_cpu && std::strcmp(targets[i].cpu_name, host_cpu) == 0);
-        unsigned vec_size = get_vector_reg_size(&targets[i].features);
+        int name_match = (!host_cpu.empty() && targets[i].cpu_name == host_cpu);
+        unsigned vec_size = get_vector_reg_size(targets[i].features);
         FeatureBits hw_feats;
         feature_and_out(&hw_feats, &targets[i].features, &hw_feature_mask);
         unsigned feat_count = feature_popcount(&hw_feats);
@@ -384,43 +261,55 @@ int tp_match_sysimg_target(const ResolvedTarget *targets, int num_targets,
 }
 
 // ============================================================================
-// Feature string generation (C API wrapper)
+// Feature string generation
 // ============================================================================
 
-void tp_build_feature_string(const FeatureBits *features,
-                             const FeatureBits *baseline,
-                             char *buf, size_t bufsize) {
-    auto s = tp::build_feature_string(features, baseline);
-    std::strncpy(buf, s.c_str(), bufsize - 1);
-    buf[bufsize - 1] = '\0';
+std::string build_feature_string(const FeatureBits &features,
+                                 const FeatureBits *baseline) {
+    std::string result;
+    for (unsigned i = 0; i < num_features; i++) {
+        int in_feat = feature_test(&features, feature_table[i].bit);
+        int in_base = baseline ? feature_test(baseline, feature_table[i].bit) : 0;
+
+        if (in_feat && !in_base) {
+            if (!result.empty()) result += ',';
+            result += '+';
+            result += feature_table[i].name;
+        } else if (!in_feat && in_base) {
+            if (!result.empty()) result += ',';
+            result += '-';
+            result += feature_table[i].name;
+        }
+    }
+    return result;
 }
 
-int tp_get_target_specs(const ResolvedTarget *resolved, int num_resolved,
-                        TargetSpec *specs) {
-    // Convert to internal types
-    std::vector<ResolvedTargetInternal> internal;
-    internal.reserve(num_resolved);
-    for (int i = 0; i < num_resolved; i++) {
-        ResolvedTargetInternal rt;
-        rt.cpu_name = resolved[i].cpu_name;
-        rt.features = resolved[i].features;
-        rt.flags = resolved[i].flags;
-        rt.base = resolved[i].base;
-        rt.ext_features = resolved[i].ext_features;
-        internal.push_back(std::move(rt));
+std::vector<TargetSpec> get_target_specs(
+        const std::vector<ResolvedTarget> &resolved) {
+    std::vector<TargetSpec> result;
+    result.reserve(resolved.size());
+
+    for (const auto &rt : resolved) {
+        TargetSpec spec;
+        spec.cpu_name = rt.cpu_name;
+        spec.flags = rt.flags;
+        spec.base = rt.base;
+
+        const CPUEntry *cpu = find_cpu(rt.cpu_name.c_str());
+        const FeatureBits *baseline = cpu ? &cpu->features : nullptr;
+
+        spec.cpu_features = build_feature_string(rt.features, baseline);
+
+        if (!rt.ext_features.empty()) {
+            if (!spec.cpu_features.empty())
+                spec.cpu_features += ',';
+            spec.cpu_features += rt.ext_features;
+        }
+
+        result.push_back(std::move(spec));
     }
 
-    auto result = tp::get_target_specs(internal);
-
-    for (int i = 0; i < num_resolved; i++) {
-        std::memset(&specs[i], 0, sizeof(TargetSpec));
-        std::strncpy(specs[i].cpu_name, result[i].cpu_name.c_str(),
-                     sizeof(specs[i].cpu_name) - 1);
-        std::strncpy(specs[i].cpu_features, result[i].cpu_features.c_str(),
-                     sizeof(specs[i].cpu_features) - 1);
-        specs[i].flags = result[i].flags;
-        specs[i].base = result[i].base;
-    }
-
-    return num_resolved;
+    return result;
 }
+
+} // namespace tp

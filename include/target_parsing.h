@@ -9,20 +9,20 @@
 #ifndef TARGET_PARSING_H
 #define TARGET_PARSING_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
 
 // Verify that a generated table header was included first
 #ifndef TARGET_FEATURE_WORDS
 #error "Include the generated target table header before target_parsing.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace tp {
 
 // Flags for target cloning behavior
-enum {
+enum TargetFlags : uint32_t {
     TF_VEC_CALL       = 1 << 0,
     TF_CLONE_ALL      = 1 << 1,
     TF_CLONE_MATH     = 1 << 2,
@@ -36,68 +36,98 @@ enum {
     TF_CLONE_BFLOAT16 = 1 << 10,
 };
 
-#define MAX_TARGETS 16
-#define MAX_EXTRA_FEATURES 64
-
 // A parsed target from the target string
-typedef struct {
-    const char *cpu_name;
-    uint32_t flags;
-    int base;  // -1 = default
-    const char *extra_features[MAX_EXTRA_FEATURES]; // "+feat" or "-feat"
-    unsigned num_extra_features;
-} ParsedTarget;
+struct ParsedTarget {
+    std::string cpu_name;
+    uint32_t flags = 0;
+    int base = -1;
+    std::vector<std::string> extra_features; // "+feat" or "-feat"
+};
 
 // A fully resolved target
-typedef struct {
-    char cpu_name[128];
-    FeatureBits features;
-    uint32_t flags;
-    int base;
-    char ext_features[512];
-} ResolvedTarget;
+struct ResolvedTarget {
+    std::string cpu_name;
+    FeatureBits features{};
+    uint32_t flags = 0;
+    int base = -1;
+    std::string ext_features;
+};
 
 // Target spec for LLVM codegen
-typedef struct {
-    char cpu_name[128];
-    char cpu_features[2048];
-    uint32_t flags;
-    int base;
-} TargetSpec;
+struct TargetSpec {
+    std::string cpu_name;
+    std::string cpu_features;
+    uint32_t flags = 0;
+    int base = -1;
+};
+
+// ============================================================================
+// String utilities
+// ============================================================================
+
+inline std::string_view trim(std::string_view sv) {
+    while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t'))
+        sv.remove_prefix(1);
+    while (!sv.empty() && (sv.back() == ' ' || sv.back() == '\t'))
+        sv.remove_suffix(1);
+    return sv;
+}
+
+inline std::vector<std::string_view> split(std::string_view sv, char delim) {
+    std::vector<std::string_view> result;
+    while (!sv.empty()) {
+        auto pos = sv.find(delim);
+        if (pos == std::string_view::npos) {
+            auto piece = trim(sv);
+            if (!piece.empty()) result.push_back(piece);
+            break;
+        }
+        auto piece = trim(sv.substr(0, pos));
+        if (!piece.empty()) result.push_back(piece);
+        sv.remove_prefix(pos + 1);
+    }
+    return result;
+}
+
+// Check if a feature bitset contains a specific feature by name
+inline bool has_feature(const FeatureBits &bits, const char *name) {
+    const FeatureEntry *fe = find_feature(name);
+    return fe && feature_test(&bits, fe->bit);
+}
+
+// ============================================================================
+// API
+// ============================================================================
 
 // Parse a target string like "haswell;skylake,+avx512f,-sse4a"
-int tp_parse_target_string(const char *target_str,
-                           ParsedTarget *targets, int max_targets);
+std::vector<ParsedTarget> parse_target_string(std::string_view target_str);
 
 // Resolve parsed targets against the CPU/feature database
-int tp_resolve_targets(const ParsedTarget *parsed, int num_parsed,
-                       ResolvedTarget *resolved,
-                       const FeatureBits *host_features,
-                       const char *host_cpu);
+std::vector<ResolvedTarget> resolve_targets(
+    const std::vector<ParsedTarget> &parsed,
+    const FeatureBits *host_features = nullptr,
+    const char *host_cpu = nullptr);
 
 // Compute clone flags for multi-versioned targets
-void tp_compute_clone_flags(ResolvedTarget *targets, int num_targets);
+void compute_clone_flags(std::vector<ResolvedTarget> &targets);
 
 // Match sysimage targets against host, return best match index
-int tp_match_sysimg_target(const ResolvedTarget *targets, int num_targets,
-                           const FeatureBits *host_features,
-                           const char *host_cpu);
+int match_sysimg_target(const std::vector<ResolvedTarget> &targets,
+                        const FeatureBits &host_features,
+                        std::string_view host_cpu);
 
 // Generate LLVM feature strings from resolved targets
-int tp_get_target_specs(const ResolvedTarget *resolved, int num_resolved,
-                        TargetSpec *specs);
+std::vector<TargetSpec> get_target_specs(
+    const std::vector<ResolvedTarget> &resolved);
 
 // Build an LLVM-compatible feature string from a feature bitset
-void tp_build_feature_string(const FeatureBits *features,
-                             const FeatureBits *baseline,
-                             char *buf, size_t bufsize);
+std::string build_feature_string(const FeatureBits &features,
+                                 const FeatureBits *baseline = nullptr);
 
 // Host CPU detection
-const char *tp_get_host_cpu_name(void);
-void tp_get_host_features(FeatureBits *features);
+const std::string &get_host_cpu_name();
+FeatureBits get_host_features();
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace tp
 
 #endif // TARGET_PARSING_H

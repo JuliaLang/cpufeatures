@@ -60,7 +60,7 @@ lib: $(STATIC_LIB)
 # ============================================================================
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp $(HOST_TABLE) $(INCDIR)/target_parsing.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -I$(SRCDIR) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
 
 $(STATIC_LIB): $(LIB_OBJS)
 	ar rcs $@ $^
