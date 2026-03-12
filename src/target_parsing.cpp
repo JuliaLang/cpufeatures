@@ -2,7 +2,7 @@
 // No LLVM runtime dependency - uses pre-generated tables.
 
 // Include generated tables FIRST (defines FeatureBits etc.)
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include "target_tables_x86_64.h"
 #elif defined(__aarch64__) || defined(_M_ARM64)
 #include "target_tables_aarch64.h"
@@ -147,7 +147,7 @@ void compute_clone_flags(std::vector<ResolvedTarget> &targets) {
 
         t.flags |= TF_CLONE_CPU | TF_CLONE_LOOP;
 
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
         if (has_feature(diff, "fma") || has_feature(diff, "fma4"))
             t.flags |= TF_CLONE_MATH;
 
@@ -185,7 +185,7 @@ void compute_clone_flags(std::vector<ResolvedTarget> &targets) {
 // ============================================================================
 
 static unsigned get_vector_reg_size(const FeatureBits &bits) {
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_feature(bits, "avx512f")) {
         if (!find_feature("evex512") || has_feature(bits, "evex512"))
             return 512;

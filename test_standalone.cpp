@@ -1,7 +1,7 @@
 // Test the standalone target parsing library - NO LLVM dependency!
 
 // Include the right table for the host architecture
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include "target_tables_x86_64.h"
 #elif defined(__aarch64__) || defined(_M_ARM64)
 #include "target_tables_aarch64.h"
