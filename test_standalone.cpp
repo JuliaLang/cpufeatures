@@ -214,6 +214,51 @@ int main() {
             m1_eq_a14 = (m1_fb.bits[w] == a14_fb.bits[w]);
         check(m1_eq_a14, "apple-m1 should equal apple-a14");
 
+        // Verify aarch64 CPUs include architecture version features
+        auto has_cross_feat = [&](const char *arch, const char *cpu, const char *feat) {
+            tp::CrossFeatureBits cfb;
+            if (!tp::cross_lookup_cpu(arch, cpu, cfb)) return false;
+            int bit = tp::cross_feature_bit(arch, feat);
+            if (bit < 0) return false;
+            return ((cfb.bits[bit / 64] >> (bit % 64)) & 1) != 0;
+        };
+
+        // cortex-x925 is ARMv9.2 — must have v8.1a through v9.2a
+        check(has_cross_feat("aarch64", "cortex-x925", "v8a"),   "x925 should have v8a");
+        check(has_cross_feat("aarch64", "cortex-x925", "v8.1a"), "x925 should have v8.1a");
+        check(has_cross_feat("aarch64", "cortex-x925", "v8.2a"), "x925 should have v8.2a");
+        check(has_cross_feat("aarch64", "cortex-x925", "v9a"),   "x925 should have v9a");
+        check(has_cross_feat("aarch64", "cortex-x925", "v9.2a"), "x925 should have v9.2a");
+        check(has_cross_feat("aarch64", "cortex-x925", "sve2"),  "x925 should have sve2");
+        check(has_cross_feat("aarch64", "cortex-x925", "dotprod"), "x925 should have dotprod");
+        check(has_cross_feat("aarch64", "cortex-x925", "fullfp16"), "x925 should have fullfp16");
+        check(has_cross_feat("aarch64", "cortex-x925", "bf16"),  "x925 should have bf16");
+
+        // cortex-a78 is ARMv8.2 — must have v8.1a, v8.2a but not v9a
+        check(has_cross_feat("aarch64", "cortex-a78", "v8.1a"), "a78 should have v8.1a");
+        check(has_cross_feat("aarch64", "cortex-a78", "v8.2a"), "a78 should have v8.2a");
+        check(!has_cross_feat("aarch64", "cortex-a78", "v9a"),  "a78 should NOT have v9a");
+        check(has_cross_feat("aarch64", "cortex-a78", "lse"),   "a78 should have lse");
+        check(has_cross_feat("aarch64", "cortex-a78", "rdm"),   "a78 should have rdm");
+
+        // apple-m1 (a14) — Apple CPUs cherry-pick features rather than
+        // claiming full ARMv8.x compliance, so check individual features
+        check(has_cross_feat("aarch64", "apple-m1", "dotprod"), "m1 should have dotprod");
+        check(has_cross_feat("aarch64", "apple-m1", "sha3"),   "m1 should have sha3");
+        check(has_cross_feat("aarch64", "apple-m1", "fullfp16"), "m1 should have fullfp16");
+
+        // x86 psABI levels
+        check(has_cross_feat("x86_64", "x86-64-v3", "avx2"), "x86-64-v3 should have avx2");
+        check(has_cross_feat("x86_64", "x86-64-v3", "fma"),  "x86-64-v3 should have fma");
+        check(has_cross_feat("x86_64", "x86-64-v3", "bmi2"), "x86-64-v3 should have bmi2");
+        check(!has_cross_feat("x86_64", "x86-64-v3", "avx512f"), "x86-64-v3 should NOT have avx512f");
+        check(has_cross_feat("x86_64", "x86-64-v4", "avx512f"),  "x86-64-v4 should have avx512f");
+        check(has_cross_feat("x86_64", "x86-64-v4", "avx512vl"), "x86-64-v4 should have avx512vl");
+
+        // riscv64 — sifive-u74 has basic extensions
+        check(has_cross_feat("riscv64", "sifive-u74", "m"), "u74 should have m (multiply)");
+        check(has_cross_feat("riscv64", "sifive-u74", "a"), "u74 should have a (atomic)");
+
         // Feature name/bit lookups
         int avx2_bit = tp::cross_feature_bit("x86_64", "avx2");
         check(avx2_bit >= 0, "avx2 should have a valid bit");
