@@ -22,21 +22,21 @@
 
 #if defined(__APPLE__)
 
-#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3 # M1/A14
-#define CPUFAMILY_ARM_BLIZZARD_AVALANCHE 0xda33d83d # M2/A15
-#define CPUFAMILY_ARM_EVEREST_SAWTOOTH   0x8765edea # A16
-#define CPUFAMILY_ARM_IBIZA              0xfa33415e # M3
-#define CPUFAMILY_ARM_LOBOS              0x5f4dea93 # M3 Pro
-#define CPUFAMILY_ARM_PALMA              0x72015832 # M3 Max
-#define CPUFAMILY_ARM_COLL               0x2876f5b5 # A17 Pro
-#define CPUFAMILY_ARM_DONAN              0x6f5129ac # M4
-#define CPUFAMILY_ARM_BRAVA              0x17d5b93a # M4 Pro/Max
-#define CPUFAMILY_ARM_TAHITI             0x75d4acb9 # A18 Pro
-#define CPUFAMILY_ARM_TUPAI              0x204526d0 # A18
-#define CPUFAMILY_ARM_HIDRA              0x1d5a87e8 # M5
-#define CPUFAMILY_ARM_SOTRA              0xf76c5b1a # M5 Pro/Max
-#define CPUFAMILY_ARM_THERA              0xab345f09 # A19 Pro
-#define CPUFAMILY_ARM_TILOS              0x01d7a72b # A19
+#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3 // M1/A14
+#define CPUFAMILY_ARM_BLIZZARD_AVALANCHE 0xda33d83d // M2/A15
+#define CPUFAMILY_ARM_EVEREST_SAWTOOTH   0x8765edea // A16
+#define CPUFAMILY_ARM_IBIZA              0xfa33415e // M3
+#define CPUFAMILY_ARM_LOBOS              0x5f4dea93 // M3 Pro
+#define CPUFAMILY_ARM_PALMA              0x72015832 // M3 Max
+#define CPUFAMILY_ARM_COLL               0x2876f5b5 // A17 Pro
+#define CPUFAMILY_ARM_DONAN              0x6f5129ac // M4
+#define CPUFAMILY_ARM_BRAVA              0x17d5b93a // M4 Pro/Max
+#define CPUFAMILY_ARM_TAHITI             0x75d4acb9 // A18 Pro
+#define CPUFAMILY_ARM_TUPAI              0x204526d0 // A18
+#define CPUFAMILY_ARM_HIDRA              0x1d5a87e8 // M5
+#define CPUFAMILY_ARM_SOTRA              0xf76c5b1a // M5 Pro/Max
+#define CPUFAMILY_ARM_THERA              0xab345f09 // A19 Pro
+#define CPUFAMILY_ARM_TILOS              0x01d7a72b // A19
 
 namespace tp {
 
