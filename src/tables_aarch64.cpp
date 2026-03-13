@@ -12,6 +12,8 @@ static const char *resolve_alias(const char *name) {
         {"apple-m1", "apple-a14"},
         {"apple-m2", "apple-a15"},
         {"apple-m3", "apple-a16"},
+        {"apple-a18", "apple-m4"},
+        {"apple-a19", "apple-m5"},
         {nullptr, nullptr}
     };
     for (const Alias *a = aliases; a->alias; a++)
