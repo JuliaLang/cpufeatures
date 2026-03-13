@@ -10,7 +10,7 @@ LLVM_VER ?= 20.1.8
 LLVM_RELEASE_URL ?= https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VER)/LLVM-$(LLVM_VER)-Linux-X64.tar.xz
 
 # Use clang++ from the LLVM release (static libs are LLVM bitcode, need LTO-aware linker)
-CXX = $(LLVM_PREFIX)/bin/clang++
+GEN_CXX = $(LLVM_PREFIX)/bin/clang++
 
 TOOLDIR = tools
 GENDIR = generated
@@ -21,6 +21,7 @@ LLVM_DL = $(BUILDDIR)/llvm-$(LLVM_VER)
 LLVM_PREFIX ?= $(LLVM_DL)
 
 LLVM_CONFIG = $(LLVM_PREFIX)/bin/llvm-config
+# Use = (not :=) so these are expanded lazily, after LLVM is downloaded
 LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags 2>/dev/null)
 LLVM_LDFLAGS = $(shell $(LLVM_CONFIG) --ldflags --libs \
 	mc core support targetparser \
@@ -54,7 +55,7 @@ download: $(LLVM_DL)/.downloaded
 
 # Build the generator tool (links LLVM)
 $(GEN_TOOL): $(TOOLDIR)/gen_target_tables.cpp $(LLVM_DL)/.downloaded | $(BUILDDIR)
-	$(CXX) $(LLVM_CXXFLAGS) $(LLVM_EXTRA_FLAGS) -o $@ $< $(LLVM_LDFLAGS) $(LLVM_SYSTEM_LIBS)
+	$(GEN_CXX) $(LLVM_CXXFLAGS) $(LLVM_EXTRA_FLAGS) -o $@ $< $(LLVM_LDFLAGS) $(LLVM_SYSTEM_LIBS)
 
 # Generate table headers
 $(GENDIR)/target_tables_x86_64.h: $(GEN_TOOL) | $(GENDIR)

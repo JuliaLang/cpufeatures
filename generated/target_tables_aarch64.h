@@ -401,7 +401,7 @@ typedef struct {
 } FeatureEntry;
 
 static const FeatureEntry feature_table[] = {
-    { "CONTEXTIDREL2", "Enable RW operand CONTEXTIDR_EL2", 24, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "CONTEXTIDREL2", "Enable RW operand CONTEXTIDR_EL2", 24, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "a35", "Cortex-A35 ARM processors", 243, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "a510", "Cortex-A510 ARM processors", 257, 0, { { 0x0ULL, 0x200000000000900ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "a520", "Cortex-A520 ARM processors", 258, 0, { { 0x0ULL, 0x200000000000900ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
