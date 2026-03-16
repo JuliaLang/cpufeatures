@@ -116,19 +116,6 @@ int main() {
     test_parse("haswell,clone_all;skylake,+avx512f,+avx512bw,-sse4a,opt_size");
     test_parse("znver3;znver4,base(0)");
 
-    // Sysimage matching
-    printf("\n--- Sysimage matching ---\n");
-    {
-        auto parsed = tp::parse_target_string("generic;haswell;skylake-avx512");
-        auto resolved = tp::resolve_targets(parsed);
-
-        const auto &host_cpu = tp::get_host_cpu_name();
-        int match = tp::match_sysimg_target(resolved, host_features, host_cpu);
-        printf("  Host: %s\n", host_cpu.c_str());
-        printf("  Best match: target %d (%s)\n", match,
-               match >= 0 ? resolved[match].cpu_name.c_str() : "none");
-    }
-
     // Clone flags
     printf("\n--- Clone flags ---\n");
     {

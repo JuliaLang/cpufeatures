@@ -118,11 +118,6 @@ std::vector<ResolvedTarget> resolve_targets(
 // Compute clone flags for multi-versioned targets
 void compute_clone_flags(std::vector<ResolvedTarget> &targets);
 
-// Match sysimage targets against host, return best match index
-int match_sysimg_target(const std::vector<ResolvedTarget> &targets,
-                        const FeatureBits &host_features,
-                        std::string_view host_cpu);
-
 // Generate LLVM feature strings from resolved targets
 std::vector<TargetSpec> get_target_specs(
     const std::vector<ResolvedTarget> &resolved);
