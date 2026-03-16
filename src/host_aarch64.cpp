@@ -69,11 +69,26 @@ const std::string &get_host_cpu_name() {
         name = "apple-m4"; break;
     }
 
-    // Use the resolved alias name (the one actually in the table) so that
-    // LLVM recognizes it when used as a -mcpu value.
+    // Resolve alias and verify the CPU exists in the table.
+    // If not, try progressively older CPUs as fallback.
     name = resolve_cpu_alias(name);
-    if (!_find_cpu_exact(name))
-        name = "generic";
+    if (!_find_cpu_exact(name)) {
+        // Fallback chain for CPUs not yet in the tables
+        static const struct { const char *from; const char *fallback; } fallbacks[] = {
+            {"apple-m5", "apple-m4"},
+            {"apple-m4", "apple-a17"},
+            {"apple-a17", "apple-a16"},
+            {nullptr, nullptr}
+        };
+        for (auto *f = fallbacks; f->from; f++) {
+            if (std::strcmp(name, f->from) == 0) {
+                const char *resolved = resolve_cpu_alias(f->fallback);
+                if (_find_cpu_exact(resolved)) { name = resolved; break; }
+            }
+        }
+        if (!_find_cpu_exact(name))
+            name = "generic";
+    }
 
     cpu_name = name;
     return cpu_name;
