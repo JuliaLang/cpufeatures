@@ -59,7 +59,15 @@ static const char *normalize_arch(const char *arch) {
     return arch;
 }
 
-// Dispatch macro to avoid repetition
+// Dispatch macros
+#define DISPATCH0(arch_str, func) do { \
+    const char *a = normalize_arch(arch_str); \
+    if (!a) return {}; \
+    if (std::strcmp(a, "x86_64") == 0)  return x86_64::func(); \
+    if (std::strcmp(a, "aarch64") == 0) return aarch64::func(); \
+    if (std::strcmp(a, "riscv64") == 0) return riscv64::func(); \
+} while(0)
+
 #define DISPATCH(arch_str, func, ...) do { \
     const char *a = normalize_arch(arch_str); \
     if (!a) return {}; \
@@ -76,17 +84,17 @@ bool cross_lookup_cpu(const char *arch, const char *cpu_name,
 }
 
 unsigned cross_feature_words(const char *arch) {
-    DISPATCH(arch, feature_words);
+    DISPATCH0(arch, feature_words);
     return 0;
 }
 
 unsigned cross_num_features(const char *arch) {
-    DISPATCH(arch, nfeatures);
+    DISPATCH0(arch, nfeatures);
     return 0;
 }
 
 unsigned cross_num_cpus(const char *arch) {
-    DISPATCH(arch, ncpus);
+    DISPATCH0(arch, ncpus);
     return 0;
 }
 
@@ -116,10 +124,11 @@ const char *cross_cpu_name(const char *arch, unsigned idx) {
 }
 
 unsigned cross_tables_version_major(const char *arch) {
-    DISPATCH(arch, tables_version_major);
+    DISPATCH0(arch, tables_version_major);
     return 0;
 }
 
+#undef DISPATCH0
 #undef DISPATCH
 
 } // namespace tp
