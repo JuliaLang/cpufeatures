@@ -350,7 +350,67 @@ FeatureBits get_host_features() {
         }
     }
 
-    // AVX-512 implies evex512
+    // XCR0 validation: the OS must enable state save for AVX/AVX-512/AMX.
+    // CPUID reports hardware capability, but XCR0 indicates OS support.
+    auto r1 = cpuid(1);
+    bool has_xsave = (r1.ecx >> 27) & 1;
+    bool has_avx_save = false;
+    bool has_avx512_save = false;
+    bool has_amx_save = false;
+
+    if (has_xsave) {
+        // Read XCR0 via XGETBV(0)
+        unsigned xcr0_lo, xcr0_hi;
+        __asm__ volatile(".byte 0x0f, 0x01, 0xd0"
+                         : "=a"(xcr0_lo), "=d"(xcr0_hi) : "c"(0));
+
+        has_avx_save = (xcr0_lo & 0x6) == 0x6;  // bits 1,2: SSE + AVX state
+#if defined(__APPLE__)
+        // Darwin lazily saves AVX-512 context on first use
+        has_avx512_save = has_avx_save;
+#else
+        has_avx512_save = has_avx_save && (xcr0_lo & 0xe0) == 0xe0;  // bits 5,6,7
+#endif
+        has_amx_save = has_xsave && (xcr0_lo & ((1 << 17) | (1 << 18))) == ((1 << 17) | (1 << 18));
+    }
+
+    // Disable features that require OS state save support
+    auto disable_feature = [&](const char *name) {
+        const FeatureEntry *fe = find_feature(name);
+        if (fe) feature_clear(&features, fe->bit);
+    };
+
+    if (!has_avx_save) {
+        static const char *avx_features[] = {
+            "avx", "avx2", "fma", "f16c", "fma4", "xop",
+            "vaes", "vpclmulqdq", "xsave", "xsaveopt", "xsavec", "xsaves",
+            nullptr
+        };
+        for (const char **f = avx_features; *f; f++) disable_feature(*f);
+        has_avx512_save = false;
+    }
+
+    if (!has_avx512_save) {
+        static const char *avx512_features[] = {
+            "avx512f", "avx512dq", "avx512ifma", "avx512cd",
+            "avx512bw", "avx512vl", "avx512vbmi", "avx512vpopcntdq",
+            "avx512vbmi2", "avx512vnni", "avx512bitalg",
+            "avx512vp2intersect", "avx512bf16", "avx512fp16",
+            "evex512", nullptr
+        };
+        for (const char **f = avx512_features; *f; f++) disable_feature(*f);
+    }
+
+    if (!has_amx_save) {
+        static const char *amx_features[] = {
+            "amx-tile", "amx-int8", "amx-bf16", "amx-fp16",
+            "amx-complex", "amx-fp8", "amx-transpose", "amx-avx512",
+            "amx-tf32", "amx-movrs", nullptr
+        };
+        for (const char **f = amx_features; *f; f++) disable_feature(*f);
+    }
+
+    // AVX-512 implies evex512 (only if not already disabled above)
     const FeatureEntry *avx512f = find_feature("avx512f");
     if (avx512f && feature_test(&features, avx512f->bit)) {
         const FeatureEntry *evex512 = find_feature("evex512");
