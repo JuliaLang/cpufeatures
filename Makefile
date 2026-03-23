@@ -12,7 +12,7 @@
 
 CXX ?= g++
 CC ?= gcc
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra
+CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -fno-exceptions -fno-rtti
 CFLAGS ?= -O2 -Wall -Wextra
 
 # Directories
