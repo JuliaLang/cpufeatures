@@ -28,20 +28,21 @@ inline const CPUEntry *find_cpu(const char *name) {
 
 namespace tp {
 
-// Flags for target cloning behavior
+// ============================================================================
+// Target parsing flags
+// ============================================================================
+
+// Flags set during target string parsing
 enum TargetFlags : uint32_t {
-    TF_VEC_CALL       = 1 << 0,
-    TF_CLONE_ALL      = 1 << 1,
-    TF_CLONE_MATH     = 1 << 2,
-    TF_CLONE_LOOP     = 1 << 3,
-    TF_CLONE_SIMD     = 1 << 4,
-    TF_UNKNOWN_NAME   = 1 << 5,
-    TF_OPTSIZE        = 1 << 6,
-    TF_MINSIZE        = 1 << 7,
-    TF_CLONE_CPU      = 1 << 8,
-    TF_CLONE_FLOAT16  = 1 << 9,
-    TF_CLONE_BFLOAT16 = 1 << 10,
+    TF_CLONE_ALL    = 1 << 1,
+    TF_UNKNOWN_NAME = 1 << 5,
+    TF_OPTSIZE      = 1 << 6,
+    TF_MINSIZE      = 1 << 7,
 };
+
+// ============================================================================
+// Types
+// ============================================================================
 
 // A parsed target from the target string
 struct ParsedTarget {
@@ -51,7 +52,7 @@ struct ParsedTarget {
     std::vector<std::string> extra_features; // "+feat" or "-feat"
 };
 
-// A fully resolved target
+// A fully resolved target (features resolved, not yet LLVM-ready)
 struct ResolvedTarget {
     std::string cpu_name;
     FeatureBits features{};
@@ -60,12 +61,32 @@ struct ResolvedTarget {
     std::string ext_features;
 };
 
-// Target spec for LLVM codegen
-struct TargetSpec {
-    std::string cpu_name;
-    std::string cpu_features;
+// What changed between a derived target and its base, in codegen terms
+struct FeatureDiff {
+    bool has_new_math    = false;  // FMA/FMA4 (x86)
+    bool has_new_simd    = false;  // SSE4.1/AVX/AVX2/AVX512, SVE, RVV
+    bool has_new_float16 = false;  // avx512fp16, fullfp16, zfh
+    bool has_new_bfloat16 = false; // avx512bf16, bf16, zvfbfmin
+};
+
+// A fully resolved target ready for LLVM consumption
+struct LLVMTargetSpec {
+    std::string cpu_name;        // Normalized for LLVM (-mcpu)
+    std::string cpu_features;    // "+avx2,-sse4a,..." (-mattr), hw-only with baseline
+    FeatureBits en_features{};   // Enabled features (hw-masked)
+    FeatureBits dis_features{};  // Disabled features (hw-masked complement)
     uint32_t flags = 0;
     int base = -1;
+    std::string ext_features;    // Pass-through features unknown to the library
+    FeatureDiff diff;            // What's new vs base target
+};
+
+// Options for resolve_targets_for_llvm
+struct ResolveOptions {
+    const FeatureBits *host_features = nullptr; // nullptr = auto-detect
+    const char *host_cpu = nullptr;             // nullptr = auto-detect
+    bool mask_first_to_host = true;             // AND target[0] with host features
+    bool strip_nondeterministic = true;         // strip rdrnd/rdseed/rtm/xsaveopt (x86)
 };
 
 // ============================================================================
@@ -103,7 +124,7 @@ inline bool has_feature(const FeatureBits &bits, const char *name) {
 }
 
 // ============================================================================
-// API
+// Low-level API (building blocks)
 // ============================================================================
 
 // Parse a target string like "haswell;skylake,+avx512f,-sse4a"
@@ -115,18 +136,35 @@ std::vector<ResolvedTarget> resolve_targets(
     const FeatureBits *host_features = nullptr,
     const char *host_cpu = nullptr);
 
-// Compute clone flags for multi-versioned targets
-void compute_clone_flags(std::vector<ResolvedTarget> &targets);
-
-// Generate LLVM feature strings from resolved targets
-std::vector<TargetSpec> get_target_specs(
-    const std::vector<ResolvedTarget> &resolved);
-
-// Build an LLVM-compatible feature string from a feature bitset
+// Build a raw feature diff string (for debug, not filtered for LLVM)
 std::string build_feature_string(const FeatureBits &features,
                                  const FeatureBits *baseline = nullptr);
 
-// Host CPU detection
+// ============================================================================
+// High-level API (one-shot, LLVM-ready)
+// ============================================================================
+
+// Target string → LLVM-ready specs with diffs computed.
+// This is the main entry point: parse, resolve, filter, normalize, diff.
+std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
+    std::string_view target_str,
+    const ResolveOptions &opts = {});
+
+// Compute feature diff between a base and derived feature set
+FeatureDiff compute_feature_diff(const FeatureBits &base,
+                                 const FeatureBits &derived);
+
+// Max vector register size in bytes for a feature set
+// (64=AVX-512, 32=AVX, 16=SSE/NEON, 256=SVE, 128=RVV, 0=none)
+int max_vector_size(const FeatureBits &features);
+
+// Access the hw_feature_mask from generated tables
+const FeatureBits &get_hw_feature_mask();
+
+// ============================================================================
+// Host detection
+// ============================================================================
+
 const std::string &get_host_cpu_name();
 FeatureBits get_host_features();
 

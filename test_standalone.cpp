@@ -57,12 +57,6 @@ static void test_parse(const char *target_str) {
             printf("    ext: %s\n", resolved[i].ext_features.c_str());
     }
 
-    // Get specs
-    auto specs = tp::get_target_specs(resolved);
-    for (size_t i = 0; i < specs.size(); i++) {
-        printf("  Spec %zu: cpu=%s features=\"%s\"\n",
-               i, specs[i].cpu_name.c_str(), specs[i].cpu_features.c_str());
-    }
 }
 
 int main() {
@@ -116,25 +110,90 @@ int main() {
     test_parse("haswell,clone_all;skylake,+avx512f,+avx512bw,-sse4a,opt_size");
     test_parse("znver3;znver4,base(0)");
 
-    // Clone flags
-    printf("\n--- Clone flags ---\n");
+    // High-level API: resolve_targets_for_llvm
+    printf("\n--- resolve_targets_for_llvm ---\n");
     {
-        auto parsed = tp::parse_target_string("generic;haswell;skylake-avx512");
-        auto resolved = tp::resolve_targets(parsed);
-        tp::compute_clone_flags(resolved);
+        // Use host features for the test
+        auto host_feats = tp::get_host_features();
+        auto host_cpu = tp::get_host_cpu_name();
+        tp::ResolveOptions opts;
+        opts.host_features = &host_feats;
+        opts.host_cpu = host_cpu.c_str();
 
-        for (size_t i = 0; i < resolved.size(); i++) {
-            printf("  Target %zu (%s): flags=", i, resolved[i].cpu_name.c_str());
-            uint32_t f = resolved[i].flags;
-            if (f & tp::TF_CLONE_ALL)  printf("CLONE_ALL ");
-            if (f & tp::TF_CLONE_MATH) printf("CLONE_MATH ");
-            if (f & tp::TF_CLONE_LOOP) printf("CLONE_LOOP ");
-            if (f & tp::TF_CLONE_SIMD) printf("CLONE_SIMD ");
-            if (f & tp::TF_CLONE_CPU)  printf("CLONE_CPU ");
-            if (f & tp::TF_CLONE_FLOAT16)  printf("CLONE_FLOAT16 ");
-            if (f & tp::TF_CLONE_BFLOAT16) printf("CLONE_BFLOAT16 ");
-            if (f == 0) printf("(none)");
-            printf("\n");
+        auto specs = tp::resolve_targets_for_llvm(
+            "generic;haswell;skylake-avx512", opts);
+        printf("  %zu LLVM specs:\n", specs.size());
+        for (size_t i = 0; i < specs.size(); i++) {
+            printf("  [%zu] cpu=%s base=%d\n", i,
+                   specs[i].cpu_name.c_str(), specs[i].base);
+            printf("       features=%s\n",
+                   specs[i].cpu_features.substr(0, 80).c_str());
+            if (i > 0) {
+                printf("       diff: math=%d simd=%d fp16=%d bf16=%d\n",
+                       specs[i].diff.has_new_math, specs[i].diff.has_new_simd,
+                       specs[i].diff.has_new_float16, specs[i].diff.has_new_bfloat16);
+            }
+        }
+
+        // Test with specific host to get deterministic results
+        // Use haswell features as "host" to test matching
+        const CPUEntry *hsw = find_cpu("haswell");
+        if (hsw) {
+            tp::ResolveOptions hsw_opts;
+            hsw_opts.host_features = &hsw->features;
+            hsw_opts.host_cpu = "haswell";
+
+            auto hsw_specs = tp::resolve_targets_for_llvm(
+                "generic;haswell;skylake-avx512", hsw_opts);
+
+            printf("\n  With haswell as host:\n");
+            for (size_t i = 0; i < hsw_specs.size(); i++) {
+                printf("  [%zu] cpu=%s vec_size=%d\n", i,
+                       hsw_specs[i].cpu_name.c_str(),
+                       tp::max_vector_size(hsw_specs[i].en_features));
+                if (i > 0) {
+                    printf("       diff: math=%d simd=%d\n",
+                           hsw_specs[i].diff.has_new_math,
+                           hsw_specs[i].diff.has_new_simd);
+                }
+            }
+
+            // haswell target on haswell host: features should match
+            // (first target is masked to host)
+            printf("  [0] cpu=%s (masked to haswell host)\n",
+                   hsw_specs[0].cpu_name.c_str());
+        }
+    }
+
+    // Feature diff tests
+    printf("\n--- Feature diff ---\n");
+    {
+        const CPUEntry *generic = find_cpu("generic");
+        const CPUEntry *hsw = find_cpu("haswell");
+        const CPUEntry *skx = find_cpu("skylake-avx512");
+
+        if (generic && hsw && skx) {
+            auto diff_gh = tp::compute_feature_diff(generic->features, hsw->features);
+            printf("  generic→haswell: math=%d simd=%d fp16=%d bf16=%d\n",
+                   diff_gh.has_new_math, diff_gh.has_new_simd,
+                   diff_gh.has_new_float16, diff_gh.has_new_bfloat16);
+
+            auto diff_hs = tp::compute_feature_diff(hsw->features, skx->features);
+            printf("  haswell→skylake-avx512: math=%d simd=%d fp16=%d bf16=%d\n",
+                   diff_hs.has_new_math, diff_hs.has_new_simd,
+                   diff_hs.has_new_float16, diff_hs.has_new_bfloat16);
+
+            auto diff_same = tp::compute_feature_diff(hsw->features, hsw->features);
+            printf("  haswell→haswell: math=%d simd=%d (should be 0,0)\n",
+                   diff_same.has_new_math, diff_same.has_new_simd);
+        }
+
+        // max_vector_size
+        if (generic && hsw && skx) {
+            printf("  vec_size: generic=%d haswell=%d skylake-avx512=%d\n",
+                   tp::max_vector_size(generic->features),
+                   tp::max_vector_size(hsw->features),
+                   tp::max_vector_size(skx->features));
         }
     }
 
@@ -281,6 +340,269 @@ int main() {
         check(ver >= 18, "tables version should be >= 18");
         check(tp::cross_tables_version_major("aarch64") == ver,
               "all arches should have same version");
+
+        // ============================================================
+        // resolve_targets_for_llvm with deterministic host
+        // ============================================================
+
+        const CPUEntry *hsw_cpu = find_cpu("haswell");
+        if (hsw_cpu) {
+            tp::ResolveOptions hsw_opts;
+            hsw_opts.host_features = &hsw_cpu->features;
+            hsw_opts.host_cpu = "haswell";
+
+            // Test: generic;haswell;skylake-avx512 on haswell host
+            auto specs = tp::resolve_targets_for_llvm(
+                "generic;haswell;skylake-avx512", hsw_opts);
+
+            check(specs.size() == 3, "should produce 3 specs");
+
+            // First target: generic, masked to haswell host
+            check(specs[0].cpu_name == "x86-64", "spec[0] should be x86-64 (normalized)");
+            check(specs[0].base == -1, "spec[0] base should be -1");
+            check(tp::max_vector_size(specs[0].en_features) <= 32,
+                  "spec[0] vec_size should be <= 32 (masked to haswell)");
+
+            // Second target: haswell
+            check(specs[1].cpu_name == "haswell", "spec[1] should be haswell");
+            check(specs[1].base == 0, "spec[1] base should be 0");
+            check(specs[1].diff.has_new_math, "haswell should have new math vs generic");
+            check(specs[1].diff.has_new_simd, "haswell should have new simd vs generic");
+            check(!specs[1].diff.has_new_float16, "haswell should NOT have new fp16 vs generic");
+
+            // Third target: skylake-avx512
+            check(specs[2].cpu_name == "skylake-avx512", "spec[2] should be skylake-avx512");
+            check(specs[2].diff.has_new_simd, "skx should have new simd vs generic");
+            check(tp::max_vector_size(specs[2].en_features) == 64,
+                  "spec[2] vec_size should be 64 (avx512)");
+
+            // Test: rdrnd/rdseed should be stripped
+            check(!tp::has_feature(specs[1].en_features, "rdrnd"),
+                  "rdrnd should be stripped from haswell");
+
+            // Test: hw_feature_mask filtering
+            // Tuning features should NOT be in en_features
+            check(!tp::has_feature(specs[1].en_features, "slow-3ops-lea"),
+                  "tuning features should not be in en_features");
+
+            // Test: dis_features is complement of en within hw_mask
+            FeatureBits combined;
+            for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+                combined.bits[w] = specs[1].en_features.bits[w] | specs[1].dis_features.bits[w];
+            check(feature_equal(&combined, &hw_feature_mask),
+                  "en | dis should equal hw_feature_mask");
+        }
+
+        // Feature diff standalone tests
+        {
+            const CPUEntry *gen = find_cpu("generic");
+            const CPUEntry *skx = find_cpu("skylake-avx512");
+            if (gen && hsw_cpu && skx) {
+                auto d1 = tp::compute_feature_diff(gen->features, hsw_cpu->features);
+                check(d1.has_new_math, "generic→haswell should have new math");
+                check(d1.has_new_simd, "generic→haswell should have new simd");
+
+                auto d2 = tp::compute_feature_diff(hsw_cpu->features, skx->features);
+                check(d2.has_new_simd, "haswell→skx should have new simd (avx512)");
+
+                auto d3 = tp::compute_feature_diff(hsw_cpu->features, hsw_cpu->features);
+                check(!d3.has_new_math, "same→same should have no new math");
+                check(!d3.has_new_simd, "same→same should have no new simd");
+            }
+        }
+
+        // max_vector_size tests
+        {
+            const CPUEntry *gen = find_cpu("generic");
+            const CPUEntry *skx = find_cpu("skylake-avx512");
+            if (gen && hsw_cpu && skx) {
+                check(tp::max_vector_size(gen->features) == 16, "generic should be 16 (SSE)");
+                check(tp::max_vector_size(hsw_cpu->features) == 32, "haswell should be 32 (AVX)");
+                check(tp::max_vector_size(skx->features) == 64, "skx should be 64 (AVX-512)");
+            }
+        }
+
+        // ============================================================
+        // Test actual Julia CI target strings
+        // ============================================================
+        printf("\n  --- Julia CI target strings ---\n");
+
+        // x86_64: generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)
+        if (hsw_cpu) {
+            tp::ResolveOptions x86_opts;
+            x86_opts.host_features = &hsw_cpu->features;
+            x86_opts.host_cpu = "haswell";
+
+            auto x86_specs = tp::resolve_targets_for_llvm(
+                "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)",
+                x86_opts);
+
+            check(x86_specs.size() == 4, "x86 CI: should produce 4 specs");
+            check(x86_specs[0].cpu_name == "x86-64", "x86 CI: spec[0] should be x86-64");
+            check(x86_specs[1].cpu_name == "sandybridge", "x86 CI: spec[1] should be sandybridge");
+            check(x86_specs[2].cpu_name == "haswell", "x86 CI: spec[2] should be haswell");
+            check(x86_specs[3].cpu_name == "x86-64-v4", "x86 CI: spec[3] should be x86-64-v4");
+
+            // sandybridge has clone_all flag
+            check(x86_specs[1].flags & tp::TF_CLONE_ALL, "x86 CI: sandybridge should have clone_all");
+            // haswell and x86-64-v4 have base(1) → base=1
+            check(x86_specs[2].base == 1, "x86 CI: haswell base should be 1");
+            check(x86_specs[3].base == 1, "x86 CI: x86-64-v4 base should be 1");
+
+            // rdrnd should be stripped (both from -rdrnd in target AND from strip_nondeterministic)
+            check(!tp::has_feature(x86_specs[2].en_features, "rdrnd"), "x86 CI: haswell should not have rdrnd");
+            check(!tp::has_feature(x86_specs[3].en_features, "rdrnd"), "x86 CI: v4 should not have rdrnd");
+
+            // xsaveopt should be stripped from sandybridge (explicit -xsaveopt)
+            check(!tp::has_feature(x86_specs[1].en_features, "xsaveopt"), "x86 CI: sandybridge should not have xsaveopt");
+
+            // Feature diffs
+            check(x86_specs[1].diff.has_new_simd, "x86 CI: sandybridge should have new simd vs generic");
+            check(x86_specs[2].diff.has_new_simd, "x86 CI: haswell should have new simd vs sandybridge");
+            check(x86_specs[3].diff.has_new_simd, "x86 CI: v4 should have new simd vs sandybridge");
+
+            printf("  x86_64 CI targets: OK (%zu specs)\n", x86_specs.size());
+        }
+
+        // i686: pentium4
+        {
+            tp::ResolveOptions i686_opts;
+            i686_opts.mask_first_to_host = false;
+
+            auto i686_specs = tp::resolve_targets_for_llvm("pentium4", i686_opts);
+            check(i686_specs.size() == 1, "i686 CI: should produce 1 spec");
+            // pentium4 should be found as a CPU
+            check(!(i686_specs[0].flags & tp::TF_UNKNOWN_NAME), "i686 CI: pentium4 should be known");
+            printf("  i686 CI targets: OK\n");
+        }
+
+        // aarch64 macOS: generic;apple-m1,clone_all
+        {
+            tp::CrossFeatureBits m1_cross;
+            if (tp::cross_lookup_cpu("aarch64", "apple-m1", m1_cross)) {
+                // Just verify the target string parses correctly
+                auto parsed = tp::parse_target_string("generic;apple-m1,clone_all");
+                check(parsed.size() == 2, "aarch64 mac CI: should parse 2 targets");
+                check(parsed[0].cpu_name == "generic", "aarch64 mac CI: first should be generic");
+                check(parsed[1].cpu_name == "apple-m1", "aarch64 mac CI: second should be apple-m1");
+                check(parsed[1].flags & tp::TF_CLONE_ALL, "aarch64 mac CI: apple-m1 should have clone_all");
+                printf("  aarch64 macOS CI targets: OK\n");
+            }
+        }
+
+        // aarch64 Linux: generic;cortex-a57;thunderx2t99;carmel,clone_all;apple-m1,base(3);neoverse-512tvb,base(3)
+        {
+            auto parsed = tp::parse_target_string(
+                "generic;cortex-a57;thunderx2t99;carmel,clone_all;apple-m1,base(3);neoverse-512tvb,base(3)");
+            check(parsed.size() == 6, "aarch64 linux CI: should parse 6 targets");
+            check(parsed[3].cpu_name == "carmel", "aarch64 linux CI: target[3] should be carmel");
+            check(parsed[3].flags & tp::TF_CLONE_ALL, "aarch64 linux CI: carmel should have clone_all");
+            check(parsed[4].base == 3, "aarch64 linux CI: apple-m1 base should be 3");
+            check(parsed[5].base == 3, "aarch64 linux CI: neoverse-512tvb base should be 3");
+
+            // Verify all CPU names are known via cross-arch lookup
+            tp::CrossFeatureBits tmpfb;
+            check(tp::cross_lookup_cpu("aarch64", "cortex-a57", tmpfb), "aarch64 CI: cortex-a57 should be known");
+            check(tp::cross_lookup_cpu("aarch64", "thunderx2t99", tmpfb), "aarch64 CI: thunderx2t99 should be known");
+            check(tp::cross_lookup_cpu("aarch64", "carmel", tmpfb), "aarch64 CI: carmel should be known");
+            check(tp::cross_lookup_cpu("aarch64", "apple-m1", tmpfb), "aarch64 CI: apple-m1 should be known");
+            // neoverse-512tvb might not be in LLVM 20 tables
+            bool has_512tvb = tp::cross_lookup_cpu("aarch64", "neoverse-512tvb", tmpfb);
+            printf("  aarch64 Linux CI targets: OK (neoverse-512tvb %s)\n",
+                   has_512tvb ? "found" : "NOT found - may need LLVM update");
+        }
+
+        // ============================================================
+        // Test resolution on popular CPUs as simulated hosts
+        // ============================================================
+        printf("\n  --- Popular CPU host simulation ---\n");
+
+        auto test_x86_host = [&](const char *host_name, const char *expected_best) {
+            const CPUEntry *host = find_cpu(host_name);
+            if (!host) { printf("  %s: NOT IN TABLE (skip)\n", host_name); return; }
+
+            tp::ResolveOptions opts;
+            opts.host_features = &host->features;
+            opts.host_cpu = host_name;
+
+            auto specs = tp::resolve_targets_for_llvm(
+                "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)",
+                opts);
+
+            // Find the "best" target: the last one whose en_features are
+            // a subset of the host (simulating sysimg matching)
+            int best = 0;
+            for (int i = (int)specs.size() - 1; i >= 0; i--) {
+                FeatureBits missing;
+                feature_andnot(&missing, &specs[i].en_features, &hw_feature_mask);
+                // Check: does the host have all the enabled hw features of this target?
+                FeatureBits target_hw, host_hw, diff;
+                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
+                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_andnot(&diff, &target_hw, &host_hw);
+                if (!feature_any(&diff)) {
+                    best = i;
+                    break;
+                }
+            }
+
+            printf("  %s → best match: [%d] %s (expected: %s) %s\n",
+                   host_name, best, specs[best].cpu_name.c_str(), expected_best,
+                   specs[best].cpu_name == expected_best ? "OK" : "MISMATCH");
+            check(specs[best].cpu_name == expected_best,
+                  (std::string(host_name) + " should match " + expected_best).c_str());
+        };
+
+        // x86_64 hosts against Julia's CI target string
+        test_x86_host("core2", "x86-64");           // too old for sandybridge
+        test_x86_host("sandybridge", "sandybridge"); // exact match
+        test_x86_host("haswell", "haswell");          // exact match
+        test_x86_host("skylake", "haswell");          // skylake > haswell but < v4
+        test_x86_host("skylake-avx512", "x86-64-v4"); // has avx512
+        test_x86_host("znver1", "sandybridge");      // haswell has invpcid, zen1 doesn't
+        test_x86_host("znver3", "sandybridge");      // same issue — use psABI levels instead
+        test_x86_host("znver4", "x86-64-v4");        // AMD Zen 4 has avx512
+        test_x86_host("broadwell", "haswell");        // broadwell ⊃ haswell
+
+        // Same test with psABI levels — fixes AMD matching
+        printf("\n  --- psABI level targets (recommended) ---\n");
+        auto test_x86_psabi = [&](const char *host_name, const char *expected_best) {
+            const CPUEntry *host = find_cpu(host_name);
+            if (!host) { printf("  %s: NOT IN TABLE (skip)\n", host_name); return; }
+
+            tp::ResolveOptions opts;
+            opts.host_features = &host->features;
+            opts.host_cpu = host_name;
+
+            auto specs = tp::resolve_targets_for_llvm(
+                "generic;x86-64-v2,clone_all;x86-64-v3,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)",
+                opts);
+
+            int best = 0;
+            for (int i = (int)specs.size() - 1; i >= 0; i--) {
+                FeatureBits target_hw, host_hw, diff;
+                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
+                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_andnot(&diff, &target_hw, &host_hw);
+                if (!feature_any(&diff)) { best = i; break; }
+            }
+
+            printf("  %s → [%d] %s (expected: %s) %s\n",
+                   host_name, best, specs[best].cpu_name.c_str(), expected_best,
+                   specs[best].cpu_name == expected_best ? "OK" : "MISMATCH");
+            check(specs[best].cpu_name == expected_best,
+                  (std::string(host_name) + " psABI should match " + expected_best).c_str());
+        };
+
+        test_x86_psabi("core2", "x86-64");
+        test_x86_psabi("sandybridge", "x86-64-v2");
+        test_x86_psabi("haswell", "x86-64-v3");
+        test_x86_psabi("skylake", "x86-64-v3");
+        test_x86_psabi("skylake-avx512", "x86-64-v4");
+        test_x86_psabi("znver1", "x86-64-v3");       // AMD Zen 1: now correctly matches v3!
+        test_x86_psabi("znver3", "x86-64-v3");       // AMD Zen 3: same
+        test_x86_psabi("znver4", "x86-64-v4");       // AMD Zen 4: avx512
+        test_x86_psabi("broadwell", "x86-64-v3");
     }
 
     if (failures > 0) {
