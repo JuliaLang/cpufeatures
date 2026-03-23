@@ -139,6 +139,10 @@ std::vector<ResolvedTarget> resolve_targets(
 std::string build_feature_string(const FeatureBits &features,
                                  const FeatureBits *baseline = nullptr);
 
+// Build LLVM-ready feature string: hw-only features with baseline appended
+std::string build_llvm_feature_string(const FeatureBits &enabled,
+                                       const FeatureBits &disabled);
+
 // ============================================================================
 // High-level API (one-shot, LLVM-ready)
 // ============================================================================

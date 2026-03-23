@@ -224,7 +224,7 @@ std::string build_feature_string(const FeatureBits &features,
 }
 
 // Build LLVM feature string: hw-only, with baseline features appended
-static std::string build_llvm_feature_string(const FeatureBits &enabled,
+std::string build_llvm_feature_string(const FeatureBits &enabled,
                                               const FeatureBits &disabled) {
     std::string result;
     for (unsigned i = 0; i < num_features; i++) {
