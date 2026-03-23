@@ -57,7 +57,13 @@ static void emitHeader(raw_ostream &OS, StringRef Arch) {
     OS << "#ifndef " << Guard << "\n";
     OS << "#define " << Guard << "\n\n";
     OS << "#include <stdint.h>\n";
-    OS << "#include <stddef.h>\n\n";
+    OS << "#include <stddef.h>\n";
+    OS << "#include <string.h>\n\n";
+    OS << "#if defined(__GNUC__) || defined(__clang__)\n";
+    OS << "#define CPUFEATURES_UNUSED __attribute__((unused))\n";
+    OS << "#else\n";
+    OS << "#define CPUFEATURES_UNUSED\n";
+    OS << "#endif\n\n";
 }
 
 static void emitFooter(raw_ostream &OS, StringRef Arch) {
@@ -278,7 +284,7 @@ static void emitFeatureEnum(raw_ostream &OS,
 // Emit a lookup function
 static void emitLookupFunctions(raw_ostream &OS) {
     OS << "// Binary search for a feature by name (table is sorted)\n";
-    OS << "static const FeatureEntry *find_feature(const char *name) {\n";
+    OS << "CPUFEATURES_UNUSED static const FeatureEntry *find_feature(const char *name) {\n";
     OS << "    int lo = 0, hi = (int)num_features - 1;\n";
     OS << "    while (lo <= hi) {\n";
     OS << "        int mid = (lo + hi) / 2;\n";
@@ -292,7 +298,7 @@ static void emitLookupFunctions(raw_ostream &OS) {
 
     OS << "// Binary search for a CPU by name (table is sorted)\n";
     OS << "// Use find_cpu() instead — this is the raw lookup without alias resolution.\n";
-    OS << "static const CPUEntry *_find_cpu_exact(const char *name) {\n";
+    OS << "CPUFEATURES_UNUSED static const CPUEntry *_find_cpu_exact(const char *name) {\n";
     OS << "    int lo = 0, hi = (int)num_cpus - 1;\n";
     OS << "    while (lo <= hi) {\n";
     OS << "        int mid = (lo + hi) / 2;\n";
@@ -305,7 +311,7 @@ static void emitLookupFunctions(raw_ostream &OS) {
     OS << "}\n\n";
 
     OS << "// Expand implied features transitively\n";
-    OS << "static void expand_implied(FeatureBits *bits) {\n";
+    OS << "CPUFEATURES_UNUSED static void expand_implied(FeatureBits *bits) {\n";
     OS << "    int changed = 1;\n";
     OS << "    while (changed) {\n";
     OS << "        changed = 0;\n";

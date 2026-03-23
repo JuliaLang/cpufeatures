@@ -11,6 +11,13 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
+
+#if defined(__GNUC__) || defined(__clang__)
+#define CPUFEATURES_UNUSED __attribute__((unused))
+#else
+#define CPUFEATURES_UNUSED
+#endif
 
 #include <string.h>
 
@@ -1021,7 +1028,7 @@ static const CPUEntry cpu_table[] = {
 static const unsigned num_cpus = 129;
 
 // Binary search for a feature by name (table is sorted)
-static const FeatureEntry *find_feature(const char *name) {
+CPUFEATURES_UNUSED static const FeatureEntry *find_feature(const char *name) {
     int lo = 0, hi = (int)num_features - 1;
     while (lo <= hi) {
         int mid = (lo + hi) / 2;
@@ -1035,7 +1042,7 @@ static const FeatureEntry *find_feature(const char *name) {
 
 // Binary search for a CPU by name (table is sorted)
 // Use find_cpu() instead — this is the raw lookup without alias resolution.
-static const CPUEntry *_find_cpu_exact(const char *name) {
+CPUFEATURES_UNUSED static const CPUEntry *_find_cpu_exact(const char *name) {
     int lo = 0, hi = (int)num_cpus - 1;
     while (lo <= hi) {
         int mid = (lo + hi) / 2;
@@ -1048,7 +1055,7 @@ static const CPUEntry *_find_cpu_exact(const char *name) {
 }
 
 // Expand implied features transitively
-static void expand_implied(FeatureBits *bits) {
+CPUFEATURES_UNUSED static void expand_implied(FeatureBits *bits) {
     int changed = 1;
     while (changed) {
         changed = 0;
