@@ -160,8 +160,7 @@ int main() {
 
             // haswell target on haswell host: features should match
             // (first target is masked to host)
-            printf("  [0] cpu=%s (masked to haswell host)\n",
-                   hsw_specs[0].cpu_name.c_str());
+            printf("  [0] cpu=%s\n", hsw_specs[0].cpu_name.c_str());
         }
     }
 
@@ -357,11 +356,9 @@ int main() {
 
             check(specs.size() == 3, "should produce 3 specs");
 
-            // First target: generic, masked to haswell host
+            // First target: generic
             check(specs[0].cpu_name == "x86-64", "spec[0] should be x86-64 (normalized)");
             check(specs[0].base == -1, "spec[0] base should be -1");
-            check(tp::max_vector_size(specs[0].en_features) <= 32,
-                  "spec[0] vec_size should be <= 32 (masked to haswell)");
 
             // Second target: haswell
             check(specs[1].cpu_name == "haswell", "spec[1] should be haswell");
@@ -466,10 +463,7 @@ int main() {
 
         // i686: pentium4
         {
-            tp::ResolveOptions i686_opts;
-            i686_opts.mask_first_to_host = false;
-
-            auto i686_specs = tp::resolve_targets_for_llvm("pentium4", i686_opts);
+            auto i686_specs = tp::resolve_targets_for_llvm("pentium4");
             check(i686_specs.size() == 1, "i686 CI: should produce 1 spec");
             // pentium4 should be found as a CPU
             check(!(i686_specs[0].flags & tp::TF_UNKNOWN_NAME), "i686 CI: pentium4 should be known");
@@ -650,10 +644,7 @@ int main() {
                 const CPUEntry *host = find_cpu(host_name);
                 if (!host) { printf("  %s: NOT IN TABLE (skip)\n", host_name); return; }
 
-                tp::ResolveOptions build_opts;
-                build_opts.mask_first_to_host = false; // building, not loading
-
-                auto sysimg_specs = tp::resolve_targets_for_llvm(target_str, build_opts);
+                auto sysimg_specs = tp::resolve_targets_for_llvm(target_str);
 
                 // Build host target
                 tp::ResolveOptions host_opts;

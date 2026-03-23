@@ -85,7 +85,6 @@ struct LLVMTargetSpec {
 struct ResolveOptions {
     const FeatureBits *host_features = nullptr; // nullptr = auto-detect
     const char *host_cpu = nullptr;             // nullptr = auto-detect
-    bool mask_first_to_host = true;             // AND target[0] with host features
     bool strip_nondeterministic = true;         // strip rdrnd/rdseed/rtm/xsaveopt (x86)
 };
 
@@ -165,10 +164,10 @@ const FeatureBits &get_hw_feature_mask();
 // Sysimage serialization and matching
 // ============================================================================
 
-// Serialize targets to binary format for embedding in sysimages
+// Serialize all targets for embedding in sysimages
 std::vector<uint8_t> serialize_targets(const std::vector<LLVMTargetSpec> &targets);
 
-// Deserialize targets from binary data
+// Deserialize targets from binary data (expects count header from serialize_targets)
 std::vector<LLVMTargetSpec> deserialize_targets(const uint8_t *data);
 
 // Result of target matching

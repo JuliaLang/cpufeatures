@@ -295,12 +295,6 @@ std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
     auto resolved = resolve_targets(parsed, opts.host_features, opts.host_cpu);
 
     // 3. Post-process each target
-    FeatureBits host_feats;
-    if (opts.host_features)
-        host_feats = *opts.host_features;
-    else
-        host_feats = get_host_features();
-
     for (size_t i = 0; i < resolved.size(); i++) {
         auto &rt = resolved[i];
 
@@ -308,13 +302,6 @@ std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
         if (opts.strip_nondeterministic)
             strip_nondeterministic_features(rt.features);
 
-        // Mask first target to host features
-        if (i == 0 && opts.mask_first_to_host) {
-            for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
-                rt.features.bits[w] &= host_feats.bits[w];
-        }
-
-        // Expand implied after masking
         expand_implied(&rt.features);
     }
 
