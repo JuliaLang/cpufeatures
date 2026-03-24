@@ -159,7 +159,6 @@ const std::string &get_host_cpu_name() {
     if (!cpu_name.empty()) return cpu_name;
 
 #if defined(__i386__) || defined(_M_IX86)
-    // On 32-bit, always report pentium4 (the generic i686 target)
     cpu_name = "pentium4";
 #else
     Vendor v = get_vendor();

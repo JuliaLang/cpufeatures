@@ -100,6 +100,24 @@ std::vector<ResolvedTarget> resolve_targets(
             }
         }
 
+        // On 32-bit x86, ignore all features from the table.
+        // Just use baseline features — full detection is not worth the
+        // complexity on this legacy platform, and the x86_64 tables include
+        // features like 64bit that don't apply.
+#if defined(__i386__) || defined(_M_IX86)
+        {
+            FeatureBits baseline{};
+            static const char *baseline_names[] = {
+                "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87", nullptr
+            };
+            for (const char **f = baseline_names; *f; f++) {
+                const FeatureEntry *fe = find_feature(*f);
+                if (fe) feature_set(&baseline, fe->bit);
+            }
+            rt.features = baseline;
+        }
+#endif
+
         for (const auto &feat : parsed[i].extra_features) {
             bool enable = (feat[0] == '+');
             const char *fname = feat.c_str() + 1;
