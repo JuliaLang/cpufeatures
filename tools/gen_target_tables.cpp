@@ -200,20 +200,26 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "    FeatureBits implies;  // transitively implied features\n";
     OS << "} FeatureEntry;\n\n";
 
-    // Exclude features that shouldn't be in the hardware mask:
-    // - Uppercase names (e.g. CONTEXTIDREL2): system register features
-    // - Features whose description indicates tuning hints rather than ISA
-    //   (e.g. ermsb "REP MOVS/STOS are fast", fsrm "REP MOVSB of short
-    //   lengths is faster"). These are not CPUID-detectable on all vendors
-    //   and shouldn't cause matching conflicts.
+    // Exclude features that shouldn't affect sysimage target matching.
+    // Uppercase names are system register features (aarch64).
+    // The blacklist covers tuning hints and privileged instructions that
+    // differ between Intel/AMD but don't affect user-space codegen.
+    static const char *blacklist[] = {
+        // x86: tuning hints and privileged instructions
+        "ermsb", "fsrm",   // tuning hints (REP MOVS speed)
+        "nopl",            // baseline assumption, not CPUID-detectable
+        "invpcid",         // privileged TLB instruction
+        nullptr
+    };
     for (const auto &F : Features) {
         if (F.Key[0] && std::isupper(static_cast<unsigned char>(F.Key[0])))
             HWMask.reset(F.Value);
-        StringRef Desc(F.Desc);
-        if (Desc.contains("fast") || Desc.contains("Fast") ||
-            Desc.contains("slow") || Desc.contains("Slow") ||
-            Desc.contains("prefer") || Desc.contains("Prefer"))
-            HWMask.reset(F.Value);
+        for (const char **bl = blacklist; *bl; bl++) {
+            if (F.Key == *bl) {
+                HWMask.reset(F.Value);
+                break;
+            }
+        }
     }
 
     OS << "static const FeatureEntry feature_table[] = {\n";

@@ -496,7 +496,9 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 196;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x9e77efffffffbfffULL, 0xfff6cbffa0f7ffffULL, 0x7fULL, 0x0ULL } };
+// Manually excluded: ermsb (44), fsrm (51) — tuning hints;
+//                    invpcid (58) — privileged instruction, not user-space codegen
+static const FeatureBits hw_feature_mask = { { 0x9a77efffffffbfffULL, 0xfff6cbffa0f7ffffULL, 0x7fULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {
