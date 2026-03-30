@@ -72,23 +72,23 @@ const std::string &get_host_cpu_name() {
 
     // Resolve alias and verify the CPU exists in the table.
     // If not, try progressively older CPUs as fallback.
-    name = resolve_cpu_alias(name);
-    if (!_find_cpu_exact(name)) {
+    if (!find_cpu(name)) {
         // Fallback chain for CPUs not yet in the tables
         static const struct { const char *from; const char *fallback; } fallbacks[] = {
             {"apple-m5", "apple-m4"},
-            {"apple-m4", "apple-a17"},
-            {"apple-a17", "apple-a16"},
+            {"apple-m4", "apple-m3"},
+            {"apple-m3", "apple-m2"},
+            {"apple-m2", "apple-m1"},
             {nullptr, nullptr}
         };
         for (auto *f = fallbacks; f->from; f++) {
             if (std::strcmp(name, f->from) == 0) {
-                const char *resolved = resolve_cpu_alias(f->fallback);
-                if (_find_cpu_exact(resolved)) { name = resolved; break; }
+                const char *fallback = f->fallback;
+                if (find_cpu(fallback)) { name = fallback; break; }
             }
         }
-        if (!_find_cpu_exact(name))
-            name = "generic";
+        if (!find_cpu(name))
+            name = "apple-m1";
     }
 
     cpu_name = name;
@@ -99,7 +99,7 @@ FeatureBits get_host_features() {
     FeatureBits features{};
 
     const auto &cpu = get_host_cpu_name();
-    const CPUEntry *entry = _find_cpu_exact(cpu.c_str());
+    const CPUEntry *entry = find_cpu(cpu.c_str());
     if (entry)
         features = entry->features;
 
