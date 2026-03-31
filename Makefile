@@ -46,7 +46,8 @@ else ifeq ($(ARCH),riscv64)
   HOST_SRC = $(SRCDIR)/host_riscv.cpp
   HOST_TABLE = $(GENDIR)/target_tables_riscv64.h
 else
-  $(error Unsupported architecture: $(ARCH). Supported: x86_64, aarch64, riscv64)
+  HOST_SRC = $(SRCDIR)/host_fallback.cpp
+  HOST_TABLE = $(GENDIR)/target_tables_fallback.h
 endif
 
 # All generated table headers

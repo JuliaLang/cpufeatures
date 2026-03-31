@@ -9,7 +9,7 @@
 #elif defined(__riscv) && __riscv_xlen == 64
 #include "target_tables_riscv64.h"
 #else
-#error "Unsupported architecture - generate tables with gen_target_tables"
+#include "target_tables_fallback.h"
 #endif
 
 #include "target_parsing.h"
