@@ -86,6 +86,69 @@ const std::string &get_host_cpu_name() {
     return cpu_name;
 }
 
+// hw.optional.arm.caps bit definitions from XNU's cpu_capabilities_public.h.
+// This is a bitbuffer (CAP_BIT_NB = 80 bits = 10 bytes) queried in one
+// sysctlbyname call. Each entry maps a cap bit to an LLVM feature name.
+struct CapBitMap { unsigned cap_bit; const char *llvm_name; };
+static const CapBitMap cap_bit_map[] = {
+    { 0,  "flagm"},        // CAP_BIT_FEAT_FlagM
+    // { 1,  "flagm2"},    // CAP_BIT_FEAT_FlagM2 — no separate LLVM feature
+    { 2,  "fp16fml"},      // CAP_BIT_FEAT_FHM
+    { 3,  "dotprod"},      // CAP_BIT_FEAT_DotProd
+    { 4,  "sha3"},         // CAP_BIT_FEAT_SHA3
+    { 5,  "rdm"},          // CAP_BIT_FEAT_RDM
+    { 6,  "lse"},          // CAP_BIT_FEAT_LSE
+    { 7,  "sha2"},         // CAP_BIT_FEAT_SHA256
+    // { 8, "sha512"},     // CAP_BIT_FEAT_SHA512 — no separate LLVM feature (part of sha3)
+    // { 9, "sha1"},       // CAP_BIT_FEAT_SHA1 — no separate LLVM feature (part of sha2)
+    {10,  "aes"},          // CAP_BIT_FEAT_AES
+    // {11, "pmull"},      // CAP_BIT_FEAT_PMULL — part of AES extension
+    // {12, "specres"},    // CAP_BIT_FEAT_SPECRES — not codegen-relevant
+    {13,  "sb"},           // CAP_BIT_FEAT_SB
+    {14,  "fptoint"},      // CAP_BIT_FEAT_FRINTTS
+    {15,  "rcpc"},         // CAP_BIT_FEAT_LRCPC
+    {16,  "rcpc-immo"},    // CAP_BIT_FEAT_LRCPC2
+    {17,  "complxnum"},    // CAP_BIT_FEAT_FCMA
+    {18,  "jsconv"},       // CAP_BIT_FEAT_JSCVT
+    {19,  "pauth"},        // CAP_BIT_FEAT_PAuth
+    // {20, "pauth2"},     // CAP_BIT_FEAT_PAuth2 — no separate LLVM feature
+    {21,  "fpac"},         // CAP_BIT_FEAT_FPAC
+    {22,  "ccpp"},         // CAP_BIT_FEAT_DPB
+    {23,  "ccdp"},         // CAP_BIT_FEAT_DPB2
+    {24,  "bf16"},         // CAP_BIT_FEAT_BF16
+    {25,  "i8mm"},         // CAP_BIT_FEAT_I8MM
+    {26,  "wfxt"},         // CAP_BIT_FEAT_WFxT
+    // {27, "rpres"},      // CAP_BIT_FEAT_RPRES — not an LLVM feature
+    {28,  "ecv"},          // CAP_BIT_FEAT_ECV
+    // {29, "afp"},        // CAP_BIT_FEAT_AFP — not an LLVM codegen feature
+    {30,  "lse2"},         // CAP_BIT_FEAT_LSE2
+    // {31, "csv2"},       // CAP_BIT_FEAT_CSV2 — not codegen-relevant
+    // {32, "csv3"},       // CAP_BIT_FEAT_CSV3 — not codegen-relevant
+    {33,  "dit"},          // CAP_BIT_FEAT_DIT
+    {34,  "fullfp16"},     // CAP_BIT_FEAT_FP16
+    {35,  "ssbs"},         // CAP_BIT_FEAT_SSBS
+    {36,  "bti"},          // CAP_BIT_FEAT_BTI
+    {40,  "sme"},          // CAP_BIT_FEAT_SME
+    {41,  "sme2"},         // CAP_BIT_FEAT_SME2
+    {42,  "sme-f64f64"},   // CAP_BIT_FEAT_SME_F64F64
+    {43,  "sme-i16i64"},   // CAP_BIT_FEAT_SME_I16I64
+    {49,  "neon"},         // CAP_BIT_AdvSIMD
+    {51,  "crc"},          // CAP_BIT_FEAT_CRC32
+    {64,  "hbc"},          // CAP_BIT_FEAT_HBC
+    // {65, "ebf16"},      // CAP_BIT_FEAT_EBF16 — no separate LLVM feature
+    // {66, "specres2"},   // CAP_BIT_FEAT_SPECRES2 — not codegen-relevant
+    {67,  "cssc"},         // CAP_BIT_FEAT_CSSC
+    {0, nullptr}           // sentinel
+};
+
+// CAP_BIT_NB = 80 bits
+#define CAP_BIT_NB 80
+#define CAP_BYTES ((CAP_BIT_NB + 7) / 8)
+
+static bool cap_test(const uint8_t *caps, unsigned bit) {
+    return (caps[bit / 8] >> (bit % 8)) & 1;
+}
+
 FeatureBits get_host_features() {
     FeatureBits features{};
 
@@ -94,6 +157,21 @@ FeatureBits get_host_features() {
     if (entry)
         features = entry->features;
 
+    // Read the full caps bitbuffer in one sysctlbyname call.
+    uint8_t caps[CAP_BYTES] = {};
+    size_t caps_len = sizeof(caps);
+    if (sysctlbyname("hw.optional.arm.caps", caps, &caps_len, nullptr, 0) == 0) {
+        for (const auto *m = cap_bit_map; m->llvm_name; m++) {
+            const FeatureEntry *fe = find_feature(m->llvm_name);
+            if (!fe) continue;
+            if (cap_test(caps, m->cap_bit))
+                feature_set(&features, fe->bit);
+            else
+                feature_clear(&features, fe->bit);
+        }
+    }
+
+    expand_implied(&features);
     return features;
 }
 
