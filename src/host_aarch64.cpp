@@ -73,7 +73,7 @@ const std::string &get_host_cpu_name() {
     // case CPUFAMILY_ARM_TILOS:
     //     name = "apple-a19"; break; // Uncomment once tables are generated from LLVM 22
     default:
-        name = "apple-m4"; break;
+        name = "apple-m1"; break;
     }
 
     // Resolve alias and verify the CPU exists in the table.
