@@ -225,6 +225,8 @@ std::string build_feature_string(const FeatureBits &features,
                                  const FeatureBits *baseline) {
     std::string result;
     for (unsigned i = 0; i < num_features; i++) {
+        if (!feature_test(&hw_feature_mask, feature_table[i].bit))
+            continue;
         int in_feat = feature_test(&features, feature_table[i].bit);
         int in_base = baseline ? feature_test(baseline, feature_table[i].bit) : 0;
 

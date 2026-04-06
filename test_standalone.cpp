@@ -674,6 +674,34 @@ int main() {
             test_match("znver4", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64-v4");
             test_match("skylake-avx512", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64-v4");
         }
+        // ============================================================
+        // build_feature_string should only include hw features
+        // ============================================================
+        printf("\n  --- build_feature_string filtering ---\n");
+        {
+            // build_feature_string should not include non-hw features
+            // (tuning hints like fast-variable-crosslane-shuffle)
+            auto host_feats = tp::get_host_features();
+            auto feat_str = tp::build_feature_string(host_feats);
+
+            // Check that no non-hw feature appears in the string
+            for (unsigned i = 0; i < num_features; i++) {
+                if (feature_table[i].is_hw) continue;
+                // Non-hw feature should not appear in the output
+                std::string name = std::string("+") + feature_table[i].name;
+                bool found = feat_str.find(name) != std::string::npos;
+                if (found) {
+                    printf("  FAIL: non-hw feature '%s' found in build_feature_string output\n",
+                           feature_table[i].name);
+                }
+                check(!found,
+                      (std::string("non-hw feature '") + feature_table[i].name +
+                       "' should not appear in build_feature_string").c_str());
+            }
+            printf("  build_feature_string: %s\n",
+                   failures == 0 ? "OK (no non-hw features)" : "FAILED");
+        }
+
     } // end cross-arch tests
 
     if (failures > 0) {
