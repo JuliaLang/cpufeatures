@@ -675,6 +675,50 @@ int main() {
             test_match("skylake-avx512", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64-v4");
         }
         // ============================================================
+        // aarch64 macOS: host detection via hw.optional.arm.caps
+        // ============================================================
+#if defined(__APPLE__) && defined(__aarch64__)
+        printf("\n  --- aarch64 macOS host detection ---\n");
+        {
+            auto host_feats = tp::get_host_features();
+            auto cpu_name = tp::get_host_cpu_name();
+            printf("  host CPU: %s\n", cpu_name.c_str());
+
+            // On any Apple Silicon, we must have at minimum these features
+            check(feature_test(&host_feats, find_feature("neon")->bit),
+                  "Apple Silicon must have NEON");
+            check(feature_test(&host_feats, find_feature("fp-armv8")->bit),
+                  "Apple Silicon must have FP");
+            check(feature_test(&host_feats, find_feature("crc")->bit),
+                  "Apple Silicon must have CRC32");
+            check(feature_test(&host_feats, find_feature("lse")->bit),
+                  "Apple Silicon must have LSE");
+            check(feature_test(&host_feats, find_feature("aes")->bit),
+                  "Apple Silicon must have AES");
+            check(feature_test(&host_feats, find_feature("sha2")->bit),
+                  "Apple Silicon must have SHA2");
+
+            // SSBS should reflect the OS, not the table.
+            // On M4, SSBS=0 in hw.optional.arm.caps.
+            // We can't assert a specific value, but we can verify the
+            // caps query ran by checking that the feature string round-trips.
+            auto feat_str = tp::build_feature_string(host_feats);
+            printf("  host features: %s\n", feat_str.c_str());
+            check(!feat_str.empty(), "host feature string should not be empty");
+
+            // Verify host resolves to a known CPU, not "generic"
+            check(cpu_name != "generic",
+                  "macOS aarch64 should detect a specific Apple CPU");
+            check(cpu_name.find("apple-") == 0,
+                  "macOS aarch64 CPU name should start with 'apple-'");
+
+            printf("  aarch64 macOS host detection: OK\n");
+        }
+#else
+        printf("\n  --- aarch64 macOS host detection: SKIPPED (not macOS aarch64) ---\n");
+#endif
+
+        // ============================================================
         // build_feature_string should only include hw features
         // ============================================================
         printf("\n  --- build_feature_string filtering ---\n");

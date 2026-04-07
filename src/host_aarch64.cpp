@@ -6,6 +6,7 @@
 #include "target_parsing.h"
 
 #include <cstring>
+#include <vector>
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -141,11 +142,8 @@ static const CapBitMap cap_bit_map[] = {
     {0, nullptr}           // sentinel
 };
 
-// CAP_BIT_NB = 80 bits
-#define CAP_BIT_NB 80
-#define CAP_BYTES ((CAP_BIT_NB + 7) / 8)
-
-static bool cap_test(const uint8_t *caps, unsigned bit) {
+static bool cap_test(const uint8_t *caps, size_t caps_len, unsigned bit) {
+    if (bit / 8 >= caps_len) return false;
     return (caps[bit / 8] >> (bit % 8)) & 1;
 }
 
@@ -158,16 +156,20 @@ FeatureBits get_host_features() {
         features = entry->features;
 
     // Read the full caps bitbuffer in one sysctlbyname call.
-    uint8_t caps[CAP_BYTES] = {};
-    size_t caps_len = sizeof(caps);
-    if (sysctlbyname("hw.optional.arm.caps", caps, &caps_len, nullptr, 0) == 0) {
-        for (const auto *m = cap_bit_map; m->llvm_name; m++) {
-            const FeatureEntry *fe = find_feature(m->llvm_name);
-            if (!fe) continue;
-            if (cap_test(caps, m->cap_bit))
-                feature_set(&features, fe->bit);
-            else
-                feature_clear(&features, fe->bit);
+    // Query size first — Apple may extend the buffer in future OS versions.
+    size_t caps_len = 0;
+    if (sysctlbyname("hw.optional.arm.caps", nullptr, &caps_len, nullptr, 0) == 0
+            && caps_len > 0) {
+        std::vector<uint8_t> caps(caps_len, 0);
+        if (sysctlbyname("hw.optional.arm.caps", caps.data(), &caps_len, nullptr, 0) == 0) {
+            for (const auto *m = cap_bit_map; m->llvm_name; m++) {
+                const FeatureEntry *fe = find_feature(m->llvm_name);
+                if (!fe) continue;
+                if (cap_test(caps.data(), caps_len, m->cap_bit))
+                    feature_set(&features, fe->bit);
+                else
+                    feature_clear(&features, fe->bit);
+            }
         }
     }
 
