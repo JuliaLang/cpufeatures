@@ -5,8 +5,21 @@
 #include "target_tables_x86_64.h"
 #include "target_parsing.h"
 
+#include <cassert>
 #include <cstring>
 #include <cpuid.h>
+
+#if defined(__linux__) || defined(__FreeBSD__)
+#  include <sched.h>
+#  include <unistd.h>
+#  define CPUFEATURES_AFFINITY_LINUX 1
+#elif defined(_WIN32)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <windows.h>
+#  define CPUFEATURES_AFFINITY_WIN32 1
+#endif
 
 // ============================================================================
 // CPUID helpers
@@ -28,6 +41,15 @@ static unsigned cpuid_max_leaf() {
 
 static unsigned cpuid_max_ext_leaf() {
     return cpuid(0x80000000).eax;
+}
+
+// CPUID(7, 0).EDX bit 15: package contains heterogeneous core types
+// (Intel "Hybrid" — Alder Lake and later) with potentially different
+// CPU features available / enabled on each core.
+static bool cpu_is_hybrid_arch() {
+    if (cpuid_max_leaf() < 7) return false;
+    auto r = cpuid(7, 0);
+    return (r.edx >> 15) & 1;
 }
 
 // ============================================================================
@@ -295,39 +317,10 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {0x80000008, 0, CPUIDBitMapping::EBX, 9, "wbnoinvd"},
 };
 
-FeatureBits get_host_features() {
-    FeatureBits features{};
-
-    // Baseline features always present
-    static const char *baseline_features[] = {
-#if defined(__x86_64__) || defined(_M_X64)
-        "64bit",
-#endif
-        "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87"
-    };
-    for (const char *name : baseline_features) {
-        const FeatureEntry *f = find_feature(name);
-        if (f) feature_set(&features, f->bit);
-    }
-
-#if defined(__i386__) || defined(_M_IX86)
-    // On 32-bit, just return baseline features.
-    // Full detection is not worth the complexity on this legacy platform.
-    return features;
-#endif
-
-    // Start with the detected CPU's features from the table.
-    // This gives us non-CPUID features like nopl, ermsb, etc.
-    const auto &cpu = get_host_cpu_name();
-    const CPUEntry *entry = _find_cpu_exact(cpu.c_str());
-    if (entry)
-        features = entry->features;
-
-    // Re-apply baseline (table may not include all of them)
-    for (const char *name : baseline_features) {
-        const FeatureEntry *f = find_feature(name);
-        if (f) feature_set(&features, f->bit);
-    }
+// Compute features visible on the currently running core, starting from
+// the supplied baseline (CPU-table features + always-present features).
+static FeatureBits compute_features_on_current_core(const FeatureBits &baseline) {
+    FeatureBits features = baseline;
 
     unsigned max_leaf = cpuid_max_leaf();
     unsigned max_ext = cpuid_max_ext_leaf();
@@ -443,7 +436,138 @@ FeatureBits get_host_features() {
         if (evex512) feature_set(&features, evex512->bit);
     }
 
+    return features;
+}
+
+// Iterate all available cores that this process may be scheduled onto,
+// even those outside the current CPU affinity, and invoke the provided
+// callback to measure the features on each core.
+template <typename Fn>
+static void for_each_schedulable_cpu(Fn &&fn) {
+#if defined(CPUFEATURES_AFFINITY_LINUX)
+    cpu_set_t old_mask;
+    CPU_ZERO(&old_mask);
+    if (sched_getaffinity(0, sizeof(old_mask), &old_mask) != 0) {
+        fn();
+        return;
+    }
+    long ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+    if (ncpu <= 0) ncpu = CPU_SETSIZE;
+    if (ncpu > CPU_SETSIZE) ncpu = CPU_SETSIZE;
+    if (ncpu <= 1) {
+        fn();
+        return;
+    }
+    bool ran = false;
+    for (long cpu = 0; cpu < ncpu; cpu++) {
+        cpu_set_t one;
+        CPU_ZERO(&one);
+        CPU_SET(cpu, &one);
+        if (sched_setaffinity(0, sizeof(one), &one) != 0) continue;
+        fn();
+        ran = true;
+    }
+    sched_setaffinity(0, sizeof(old_mask), &old_mask);
+    if (!ran) fn();
+#elif defined(CPUFEATURES_AFFINITY_WIN32)
+    // On Windows a thread can't widen past its process mask, so the
+    // process mask is the upper bound of schedulable CPUs.
+    DWORD_PTR proc_mask = 0, sys_mask = 0;
+    HANDLE thread = GetCurrentThread();
+    if (!GetProcessAffinityMask(GetCurrentProcess(), &proc_mask, &sys_mask) || proc_mask == 0) {
+        fn();
+        return;
+    }
+    int n = 0;
+    for (DWORD_PTR m = proc_mask; m; m &= m - 1) n++;
+    if (n <= 1) {
+        fn();
+        return;
+    }
+    // Windows has no GetThreadAffinityMask; SetThreadAffinityMask returns
+    // the previous mask, so we read-modify-write to capture the original.
+    DWORD_PTR saved = SetThreadAffinityMask(thread, proc_mask);
+    if (saved == 0) {
+        fn();
+        return;
+    }
+    bool ran = false;
+    for (unsigned cpu = 0; cpu < sizeof(DWORD_PTR) * 8; cpu++) {
+        DWORD_PTR bit = (DWORD_PTR)1 << cpu;
+        if (!(proc_mask & bit)) continue;
+        if (SetThreadAffinityMask(thread, bit) == 0) continue;
+        // Windows applies the new affinity at the next dispatch; yield
+        // to force a migration before CPUID runs.
+        SwitchToThread();
+        fn();
+        ran = true;
+    }
+    SetThreadAffinityMask(thread, saved);
+    if (!ran) fn();
+#else
+    assert(false);
+    __builtin_unreachable();
+#endif
+}
+
+FeatureBits get_host_features() {
+    static bool cached_valid = false;
+    static FeatureBits cached;
+    if (cached_valid) return cached;
+
+    FeatureBits features{};
+
+    // Baseline features always present
+    static const char *baseline_features[] = {
+#if defined(__x86_64__) || defined(_M_X64)
+        "64bit",
+#endif
+        "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87"
+    };
+    auto apply_baseline = [&](FeatureBits &fb) {
+        for (const char *name : baseline_features) {
+            const FeatureEntry *f = find_feature(name);
+            if (f) feature_set(&fb, f->bit);
+        }
+    };
+    apply_baseline(features);
+
+#if defined(__i386__) || defined(_M_IX86)
+    // On 32-bit, just return baseline features.
+    // Full detection is not worth the complexity on this legacy platform.
+    cached = features;
+    cached_valid = true;
+    return features;
+#endif
+
+    // Start with the detected CPU's features from the table.
+    // This gives us non-CPUID features like nopl, ermsb, etc.
+    const auto &cpu = get_host_cpu_name();
+    const CPUEntry *entry = _find_cpu_exact(cpu.c_str());
+    if (entry)
+        features = entry->features;
+
+    // Re-apply baseline (table may not include all of them)
+    apply_baseline(features);
+
+    // Detect CPUID/XCR0-derived features (on all cores, if necessary)
+    FeatureBits all_cpu_features = compute_features_on_current_core(features);
+    if (cpu_is_hybrid_arch()) {
+        // Intersect CPUID/XCR0-derived features across every CPU we are
+        // allowed to run on. On hybrid CPUs the per-core results differ, and
+        // callers need a feature set that holds on any core they may be
+        // scheduled to later.
+        for_each_schedulable_cpu([&]() {
+            FeatureBits per_core = compute_features_on_current_core(features);
+            for (unsigned i = 0; i < TARGET_FEATURE_WORDS; i++)
+                all_cpu_features.bits[i] &= per_core.bits[i];
+        });
+    }
+    features = all_cpu_features;
+
     expand_implied(&features);
+    cached = features;
+    cached_valid = true;
     return features;
 }
 
