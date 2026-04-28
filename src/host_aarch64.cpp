@@ -344,10 +344,8 @@ static inline unsigned int _bitslice(unsigned int reg, unsigned int msb, unsigne
 }
 
 namespace tp {
-// NOTE: From what I understand, FreeBSD reports the intersection of capabilities across
-// CPUs, which differs from how big.LITTLE is handled here on Linux. If having the set of
-// capabilities from the most capable CPU is important, we'll need to determine how to
-// query by CPU on FreeBSD.
+// NOTE: FreeBSD reports the intersection of capabilities across CPUs, so
+// checking capabilities separately by CPU is not necessary
 const std::string &get_host_cpu_name() {
     static std::string cpu_name;
     if (!cpu_name.empty()) {
