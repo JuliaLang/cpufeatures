@@ -237,7 +237,7 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {7, 0, CPUIDBitMapping::EBX,  3, "bmi"},
     {7, 0, CPUIDBitMapping::EBX,  5, "avx2"},
     {7, 0, CPUIDBitMapping::EBX,  8, "bmi2"},
-    {7, 0, CPUIDBitMapping::EBX, 10, "invpcid"},
+    // {7, 0, CPUIDBitMapping::EBX, 10, "invpcid"},  // privileged instruction
     {7, 0, CPUIDBitMapping::EBX, 16, "avx512f"},
     {7, 0, CPUIDBitMapping::EBX, 17, "avx512dq"},
     {7, 0, CPUIDBitMapping::EBX, 18, "rdseed"},
@@ -273,7 +273,7 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {7, 0, CPUIDBitMapping::EDX,  8, "avx512vp2intersect"},
     {7, 0, CPUIDBitMapping::EDX, 14, "serialize"},
     {7, 0, CPUIDBitMapping::EDX, 16, "tsxldtrk"},
-    {7, 0, CPUIDBitMapping::EDX, 18, "pconfig"},
+    // {7, 0, CPUIDBitMapping::EDX, 18, "pconfig"},  // privileged instruction
     {7, 0, CPUIDBitMapping::EDX, 22, "amx-bf16"},
     {7, 0, CPUIDBitMapping::EDX, 23, "avx512fp16"},
     {7, 0, CPUIDBitMapping::EDX, 24, "amx-tile"},
@@ -314,7 +314,7 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     // Extended 0x80000008, EBX
     {0x80000008, 0, CPUIDBitMapping::EBX, 0, "clzero"},
     {0x80000008, 0, CPUIDBitMapping::EBX, 4, "rdpru"},
-    {0x80000008, 0, CPUIDBitMapping::EBX, 9, "wbnoinvd"},
+    // {0x80000008, 0, CPUIDBitMapping::EBX, 9, "wbnoinvd"},  // privileged instruction
 };
 
 // Compute features visible on the currently running core, starting from

@@ -126,7 +126,7 @@ static const CapBitMap cap_bit_map[] = {
     // {32, "csv3"},       // CAP_BIT_FEAT_CSV3 — not codegen-relevant
     {33,  "dit"},          // CAP_BIT_FEAT_DIT
     {34,  "fullfp16"},     // CAP_BIT_FEAT_FP16
-    {35,  "ssbs"},         // CAP_BIT_FEAT_SSBS
+    // {35, "ssbs"},       // CAP_BIT_FEAT_SSBS — not codegen-relevant
     {36,  "bti"},          // CAP_BIT_FEAT_BTI
     {40,  "sme"},          // CAP_BIT_FEAT_SME
     {41,  "sme2"},         // CAP_BIT_FEAT_SME2
@@ -551,7 +551,7 @@ FeatureBits get_host_features() {
         {1UL << 25, false, "lse2"},          // HWCAP_USCAT
         {1UL << 26, false, "rcpc-immo"},     // HWCAP_ILRCPC
         {1UL << 27, false, "flagm"},         // HWCAP_FLAGM
-        {1UL << 28, false, "ssbs"},          // HWCAP_SSBS
+        // {1UL << 28, false, "ssbs"},       // HWCAP_SSBS — not codegen-relevant
         {1UL << 29, false, "sb"},            // HWCAP_SB
         {1UL << 30, false, "pauth"},         // HWCAP_PACA
         // HWCAP2

@@ -209,6 +209,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "ermsb", "fsrm",   // tuning hints (REP MOVS speed)
         "nopl",            // baseline assumption, not CPUID-detectable
         "invpcid",         // privileged TLB instruction
+        "pconfig",         // privileged platform configuration instruction
+        "wbnoinvd",        // privileged cache writeback instruction
+        "hreset",          // privileged history-reset instruction
         // aarch64:
         "ssbs",            // speculative execution mitigation, not codegen-relevant.
         nullptr

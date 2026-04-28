@@ -390,7 +390,7 @@ static const FeatureEntry feature_table[] = {
     { "gfni", "Enable Galois Field Arithmetic Instructions", 53, 1, { { 0x0ULL, 0x2000000000ULL, 0x0ULL, 0x0ULL } } },
     { "harden-sls-ijmp", "Harden against straight line speculation across indirect JMP instructions.", 55, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "harden-sls-ret", "Harden against straight line speculation across RET instructions.", 56, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "hreset", "Has hreset instruction", 54, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "hreset", "Has hreset instruction", 54, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "idivl-to-divb", "Use 8-bit divide for positive values less than 256", 185, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "idivq-to-divl", "Use 32-bit divide for positive values less than 2^32", 186, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "inline-asm-use-gpr32", "Enable use of GPR32 in inline assembly for APX", 115, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -418,7 +418,7 @@ static const FeatureEntry feature_table[] = {
     { "nopl", "Enable NOPL instruction (generally pentium pro+)", 73, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pad-short-functions", "Pad short functions (to prevent a stall when returning too early)", 174, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pclmul", "Enable packed carry-less multiplication instructions", 74, 1, { { 0x0ULL, 0x2000000000ULL, 0x0ULL, 0x0ULL } } },
-    { "pconfig", "platform configuration instruction", 75, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "pconfig", "platform configuration instruction", 75, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pku", "Enable protection keys", 76, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "popcnt", "Support POPCNT instruction", 77, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ppx", "Support Push-Pop Acceleration", 78, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -482,7 +482,7 @@ static const FeatureEntry feature_table[] = {
     { "vpclmulqdq", "Enable vpclmulqdq instructions", 122, 1, { { 0x1000ULL, 0x400ULL, 0x0ULL, 0x0ULL } } },
     { "vzeroupper", "Should insert vzeroupper instructions", 161, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "waitpkg", "Wait and pause enhancements", 124, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "wbnoinvd", "Write Back No Invalidate", 125, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "wbnoinvd", "Write Back No Invalidate", 125, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "widekl", "Support Key Locker wide Instructions", 126, 1, { { 0x800000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "x87", "Enable X87 float instructions", 128, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "xop", "Enable XOP instructions", 129, 1, { { 0x1000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -496,7 +496,7 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 196;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x9a77efffffffbfffULL, 0xfff6cbffa0f7fdffULL, 0x7fULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x9a37efffffffbfffULL, 0xdff6cbffa0f7f5ffULL, 0x7fULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {
