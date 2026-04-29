@@ -5,6 +5,7 @@
 #include "target_tables_riscv64.h"
 #include "target_parsing.h"
 
+#include <cassert>
 #include <cstring>
 #include <cstdlib>
 
@@ -33,59 +34,63 @@ static int do_hwprobe(struct riscv_hwprobe *pairs, size_t count) {
 #define RISCV_HWPROBE_KEY_IMA_EXT_0     4
 #define RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF 9
 
-#define RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1 << 0)
-
-#define RISCV_HWPROBE_IMA_FD            (1ULL << 0)
-#define RISCV_HWPROBE_IMA_C             (1ULL << 1)
-#define RISCV_HWPROBE_IMA_V             (1ULL << 2)
-#define RISCV_HWPROBE_EXT_ZBA           (1ULL << 3)
-#define RISCV_HWPROBE_EXT_ZBB           (1ULL << 4)
-#define RISCV_HWPROBE_EXT_ZBS           (1ULL << 5)
-#define RISCV_HWPROBE_EXT_ZICBOZ        (1ULL << 6)
-#define RISCV_HWPROBE_EXT_ZBC           (1ULL << 7)
-#define RISCV_HWPROBE_EXT_ZBKB          (1ULL << 8)
-#define RISCV_HWPROBE_EXT_ZBKC          (1ULL << 9)
-#define RISCV_HWPROBE_EXT_ZBKX          (1ULL << 10)
-#define RISCV_HWPROBE_EXT_ZKND          (1ULL << 11)
-#define RISCV_HWPROBE_EXT_ZKNE          (1ULL << 12)
-#define RISCV_HWPROBE_EXT_ZKNH          (1ULL << 13)
-#define RISCV_HWPROBE_EXT_ZKSED         (1ULL << 14)
-#define RISCV_HWPROBE_EXT_ZKSH          (1ULL << 15)
-#define RISCV_HWPROBE_EXT_ZKT           (1ULL << 16)
-#define RISCV_HWPROBE_EXT_ZVBB          (1ULL << 17)
-#define RISCV_HWPROBE_EXT_ZVBC          (1ULL << 18)
-#define RISCV_HWPROBE_EXT_ZVKB          (1ULL << 19)
-#define RISCV_HWPROBE_EXT_ZVKG          (1ULL << 20)
-#define RISCV_HWPROBE_EXT_ZVKNED        (1ULL << 21)
-#define RISCV_HWPROBE_EXT_ZVKNHA        (1ULL << 22)
-#define RISCV_HWPROBE_EXT_ZVKNHB        (1ULL << 23)
-#define RISCV_HWPROBE_EXT_ZVKSED        (1ULL << 24)
-#define RISCV_HWPROBE_EXT_ZVKSH         (1ULL << 25)
-#define RISCV_HWPROBE_EXT_ZVKT          (1ULL << 26)
-#define RISCV_HWPROBE_EXT_ZFH           (1ULL << 27)
-#define RISCV_HWPROBE_EXT_ZFHMIN        (1ULL << 28)
-#define RISCV_HWPROBE_EXT_ZIHINTNTL     (1ULL << 29)
-#define RISCV_HWPROBE_EXT_ZVFH          (1ULL << 30)
-#define RISCV_HWPROBE_EXT_ZVFHMIN       (1ULL << 31)
-#define RISCV_HWPROBE_EXT_ZFA           (1ULL << 32)
-#define RISCV_HWPROBE_EXT_ZTSO          (1ULL << 33)
-#define RISCV_HWPROBE_EXT_ZACAS         (1ULL << 34)
-#define RISCV_HWPROBE_EXT_ZICOND        (1ULL << 35)
-#define RISCV_HWPROBE_EXT_ZIHINTPAUSE   (1ULL << 36)
-#define RISCV_HWPROBE_EXT_ZVE32X        (1ULL << 37)
-#define RISCV_HWPROBE_EXT_ZVE32F        (1ULL << 38)
-#define RISCV_HWPROBE_EXT_ZVE64X        (1ULL << 39)
-#define RISCV_HWPROBE_EXT_ZVE64F        (1ULL << 40)
-#define RISCV_HWPROBE_EXT_ZVE64D        (1ULL << 41)
-#define RISCV_HWPROBE_EXT_ZIMOP         (1ULL << 42)
-#define RISCV_HWPROBE_EXT_ZCA           (1ULL << 43)
-#define RISCV_HWPROBE_EXT_ZCB           (1ULL << 44)
-#define RISCV_HWPROBE_EXT_ZCD           (1ULL << 45)
-#define RISCV_HWPROBE_EXT_ZCF           (1ULL << 46)
-#define RISCV_HWPROBE_EXT_ZCMOP         (1ULL << 47)
-#define RISCV_HWPROBE_EXT_ZAWRS         (1ULL << 48)
-
+#define RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1ULL << 0)
 #define RISCV_HWPROBE_MISALIGNED_SCALAR_FAST 3
+
+struct HwprobeBitMap { unsigned bit; const char *llvm_name; };
+static const HwprobeBitMap hwprobe_ext_map[] = {
+    { 0, "f"},            // RISCV_HWPROBE_IMA_FD
+    { 0, "d"},            // RISCV_HWPROBE_IMA_FD
+    { 1, "c"},            // RISCV_HWPROBE_IMA_C
+    { 2, "v"},            // RISCV_HWPROBE_IMA_V
+    { 3, "zba"},          // RISCV_HWPROBE_EXT_ZBA
+    { 4, "zbb"},          // RISCV_HWPROBE_EXT_ZBB
+    { 5, "zbs"},          // RISCV_HWPROBE_EXT_ZBS
+    { 6, "zicboz"},       // RISCV_HWPROBE_EXT_ZICBOZ
+    { 7, "zbc"},          // RISCV_HWPROBE_EXT_ZBC
+    { 8, "zbkb"},         // RISCV_HWPROBE_EXT_ZBKB
+    { 9, "zbkc"},         // RISCV_HWPROBE_EXT_ZBKC
+    {10, "zbkx"},         // RISCV_HWPROBE_EXT_ZBKX
+    {11, "zknd"},         // RISCV_HWPROBE_EXT_ZKND
+    {12, "zkne"},         // RISCV_HWPROBE_EXT_ZKNE
+    {13, "zknh"},         // RISCV_HWPROBE_EXT_ZKNH
+    {14, "zksed"},        // RISCV_HWPROBE_EXT_ZKSED
+    {15, "zksh"},         // RISCV_HWPROBE_EXT_ZKSH
+    {16, "zkt"},          // RISCV_HWPROBE_EXT_ZKT
+    {17, "zvbb"},         // RISCV_HWPROBE_EXT_ZVBB
+    {18, "zvbc"},         // RISCV_HWPROBE_EXT_ZVBC
+    {19, "zvkb"},         // RISCV_HWPROBE_EXT_ZVKB
+    {20, "zvkg"},         // RISCV_HWPROBE_EXT_ZVKG
+    {21, "zvkned"},       // RISCV_HWPROBE_EXT_ZVKNED
+    {22, "zvknha"},       // RISCV_HWPROBE_EXT_ZVKNHA
+    {23, "zvknhb"},       // RISCV_HWPROBE_EXT_ZVKNHB
+    {24, "zvksed"},       // RISCV_HWPROBE_EXT_ZVKSED
+    {25, "zvksh"},        // RISCV_HWPROBE_EXT_ZVKSH
+    {26, "zvkt"},         // RISCV_HWPROBE_EXT_ZVKT
+    {27, "zfh"},          // RISCV_HWPROBE_EXT_ZFH
+    {28, "zfhmin"},       // RISCV_HWPROBE_EXT_ZFHMIN
+    {29, "zihintntl"},    // RISCV_HWPROBE_EXT_ZIHINTNTL
+    {30, "zvfh"},         // RISCV_HWPROBE_EXT_ZVFH
+    {31, "zvfhmin"},      // RISCV_HWPROBE_EXT_ZVFHMIN
+    {32, "zfa"},          // RISCV_HWPROBE_EXT_ZFA
+    {33, "ztso"},         // RISCV_HWPROBE_EXT_ZTSO
+    {34, "zacas"},        // RISCV_HWPROBE_EXT_ZACAS
+    {35, "zicond"},       // RISCV_HWPROBE_EXT_ZICOND
+    {36, "zihintpause"},  // RISCV_HWPROBE_EXT_ZIHINTPAUSE
+    {37, "zve32x"},       // RISCV_HWPROBE_EXT_ZVE32X
+    {38, "zve32f"},       // RISCV_HWPROBE_EXT_ZVE32F
+    {39, "zve64x"},       // RISCV_HWPROBE_EXT_ZVE64X
+    {40, "zve64f"},       // RISCV_HWPROBE_EXT_ZVE64F
+    {41, "zve64d"},       // RISCV_HWPROBE_EXT_ZVE64D
+    {42, "zimop"},        // RISCV_HWPROBE_EXT_ZIMOP
+    {43, "zca"},          // RISCV_HWPROBE_EXT_ZCA
+    {44, "zcb"},          // RISCV_HWPROBE_EXT_ZCB
+    {45, "zcd"},          // RISCV_HWPROBE_EXT_ZCD
+    {46, "zcf"},          // RISCV_HWPROBE_EXT_ZCF
+    {47, "zcmop"},        // RISCV_HWPROBE_EXT_ZCMOP
+    {48, "zawrs"},        // RISCV_HWPROBE_EXT_ZAWRS
+    {0, nullptr}          // sentinel
+};
 
 #endif // __linux__
 
@@ -128,11 +133,6 @@ static const char *detect_riscv_cpu_from_hwprobe(void) {
 
 #endif
 
-static void set_feature(FeatureBits *features, const char *name) {
-    const FeatureEntry *fe = find_feature(name);
-    if (fe) feature_set(features, fe->bit);
-}
-
 namespace tp {
 
 const std::string &get_host_cpu_name() {
@@ -153,7 +153,12 @@ const std::string &get_host_cpu_name() {
 }
 
 FeatureBits get_host_features() {
+    // RISC-V has no CPU-table baseline at the LLVM-feature level — even
+    // "i" comes from hwprobe — so features starts empty and any extension
+    // not enumerated by hwprobe ends up in to_disable.
     FeatureBits features{};
+    FeatureBits to_enable{};
+    FeatureBits to_disable{};
 
 #ifdef __linux__
     struct riscv_hwprobe query[] = {
@@ -168,79 +173,30 @@ FeatureBits get_host_features() {
     unsigned long long base = query[0].value;
     unsigned long long ext = query[1].value;
 
-    if (base & RISCV_HWPROBE_BASE_BEHAVIOR_IMA) {
-        set_feature(&features, "i");
-        set_feature(&features, "m");
-        set_feature(&features, "a");
+    bool has_ima = (base & RISCV_HWPROBE_BASE_BEHAVIOR_IMA) != 0;
+    FeatureBits *delta = has_ima ? &to_enable : &to_disable;
+    feature_set(delta, find_feature("i")->bit);
+    feature_set(delta, find_feature("m")->bit);
+    feature_set(delta, find_feature("a")->bit);
+
+    for (const auto *m = hwprobe_ext_map; m->llvm_name; m++) {
+        const FeatureEntry *fe = find_feature(m->llvm_name);
+        assert(fe && "could not find feature in hwprobe_ext_map");
+        if ((ext & (1ULL << m->bit)) != 0)
+            feature_set(&to_enable, fe->bit);
+        else
+            feature_set(&to_disable, fe->bit);
     }
 
-    if (ext & RISCV_HWPROBE_IMA_FD) {
-        set_feature(&features, "f");
-        set_feature(&features, "d");
-    }
-    if (ext & RISCV_HWPROBE_IMA_C)    set_feature(&features, "c");
-    if (ext & RISCV_HWPROBE_IMA_V)    set_feature(&features, "v");
-
-    if (ext & RISCV_HWPROBE_EXT_ZBA)   set_feature(&features, "zba");
-    if (ext & RISCV_HWPROBE_EXT_ZBB)   set_feature(&features, "zbb");
-    if (ext & RISCV_HWPROBE_EXT_ZBS)   set_feature(&features, "zbs");
-    if (ext & RISCV_HWPROBE_EXT_ZBC)   set_feature(&features, "zbc");
-    if (ext & RISCV_HWPROBE_EXT_ZBKB)  set_feature(&features, "zbkb");
-    if (ext & RISCV_HWPROBE_EXT_ZBKC)  set_feature(&features, "zbkc");
-    if (ext & RISCV_HWPROBE_EXT_ZBKX)  set_feature(&features, "zbkx");
-
-    if (ext & RISCV_HWPROBE_EXT_ZKND)  set_feature(&features, "zknd");
-    if (ext & RISCV_HWPROBE_EXT_ZKNE)  set_feature(&features, "zkne");
-    if (ext & RISCV_HWPROBE_EXT_ZKNH)  set_feature(&features, "zknh");
-    if (ext & RISCV_HWPROBE_EXT_ZKSED) set_feature(&features, "zksed");
-    if (ext & RISCV_HWPROBE_EXT_ZKSH)  set_feature(&features, "zksh");
-    if (ext & RISCV_HWPROBE_EXT_ZKT)   set_feature(&features, "zkt");
-
-    if (ext & RISCV_HWPROBE_EXT_ZVBB)   set_feature(&features, "zvbb");
-    if (ext & RISCV_HWPROBE_EXT_ZVBC)   set_feature(&features, "zvbc");
-    if (ext & RISCV_HWPROBE_EXT_ZVKB)   set_feature(&features, "zvkb");
-    if (ext & RISCV_HWPROBE_EXT_ZVKG)   set_feature(&features, "zvkg");
-    if (ext & RISCV_HWPROBE_EXT_ZVKNED) set_feature(&features, "zvkned");
-    if (ext & RISCV_HWPROBE_EXT_ZVKNHA) set_feature(&features, "zvknha");
-    if (ext & RISCV_HWPROBE_EXT_ZVKNHB) set_feature(&features, "zvknhb");
-    if (ext & RISCV_HWPROBE_EXT_ZVKSED) set_feature(&features, "zvksed");
-    if (ext & RISCV_HWPROBE_EXT_ZVKSH)  set_feature(&features, "zvksh");
-    if (ext & RISCV_HWPROBE_EXT_ZVKT)   set_feature(&features, "zvkt");
-
-    if (ext & RISCV_HWPROBE_EXT_ZFH)    set_feature(&features, "zfh");
-    if (ext & RISCV_HWPROBE_EXT_ZFHMIN) set_feature(&features, "zfhmin");
-    if (ext & RISCV_HWPROBE_EXT_ZVFH)   set_feature(&features, "zvfh");
-    if (ext & RISCV_HWPROBE_EXT_ZVFHMIN) set_feature(&features, "zvfhmin");
-    if (ext & RISCV_HWPROBE_EXT_ZFA)    set_feature(&features, "zfa");
-
-    if (ext & RISCV_HWPROBE_EXT_ZICBOZ)     set_feature(&features, "zicboz");
-    if (ext & RISCV_HWPROBE_EXT_ZIHINTNTL)   set_feature(&features, "zihintntl");
-    if (ext & RISCV_HWPROBE_EXT_ZIHINTPAUSE) set_feature(&features, "zihintpause");
-    if (ext & RISCV_HWPROBE_EXT_ZTSO)        set_feature(&features, "ztso");
-    if (ext & RISCV_HWPROBE_EXT_ZACAS)       set_feature(&features, "zacas");
-    if (ext & RISCV_HWPROBE_EXT_ZICOND)      set_feature(&features, "zicond");
-    if (ext & RISCV_HWPROBE_EXT_ZIMOP)       set_feature(&features, "zimop");
-    if (ext & RISCV_HWPROBE_EXT_ZAWRS)       set_feature(&features, "zawrs");
-
-    if (ext & RISCV_HWPROBE_EXT_ZVE32X) set_feature(&features, "zve32x");
-    if (ext & RISCV_HWPROBE_EXT_ZVE32F) set_feature(&features, "zve32f");
-    if (ext & RISCV_HWPROBE_EXT_ZVE64X) set_feature(&features, "zve64x");
-    if (ext & RISCV_HWPROBE_EXT_ZVE64F) set_feature(&features, "zve64f");
-    if (ext & RISCV_HWPROBE_EXT_ZVE64D) set_feature(&features, "zve64d");
-
-    if (ext & RISCV_HWPROBE_EXT_ZCA)  set_feature(&features, "zca");
-    if (ext & RISCV_HWPROBE_EXT_ZCB)  set_feature(&features, "zcb");
-    if (ext & RISCV_HWPROBE_EXT_ZCD)  set_feature(&features, "zcd");
-    if (ext & RISCV_HWPROBE_EXT_ZCF)  set_feature(&features, "zcf");
-    if (ext & RISCV_HWPROBE_EXT_ZCMOP) set_feature(&features, "zcmop");
-
-    if (query[2].key != -1 &&
-        query[2].value == RISCV_HWPROBE_MISALIGNED_SCALAR_FAST) {
-        set_feature(&features, "unaligned-scalar-mem");
+    if (query[2].key != -1) {
+        if (query[2].value == RISCV_HWPROBE_MISALIGNED_SCALAR_FAST)
+            feature_set(&to_enable, find_feature("unaligned-scalar-mem")->bit);
+        else
+            feature_set(&to_disable, find_feature("unaligned-scalar-mem")->bit);
     }
 #endif
 
-    _expand_entailed_enable_bits(&features);
+    apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
 
