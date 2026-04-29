@@ -5,6 +5,7 @@
 #include "target_tables_aarch64.h"
 #include "target_parsing.h"
 
+#include <cassert>
 #include <cstring>
 #include <vector>
 
@@ -156,6 +157,8 @@ FeatureBits get_host_features() {
 
     // Read the full caps bitbuffer in one sysctlbyname call.
     // Query size first — Apple may extend the buffer in future OS versions.
+    FeatureBits to_enable{};
+    FeatureBits to_disable{};
     size_t caps_len = 0;
     if (sysctlbyname("hw.optional.arm.caps", nullptr, &caps_len, nullptr, 0) == 0
             && caps_len > 0) {
@@ -163,16 +166,16 @@ FeatureBits get_host_features() {
         if (sysctlbyname("hw.optional.arm.caps", caps.data(), &caps_len, nullptr, 0) == 0) {
             for (const auto *m = cap_bit_map; m->llvm_name; m++) {
                 const FeatureEntry *fe = find_feature(m->llvm_name);
-                if (!fe) continue;
+                assert(fe && "could not find feature in cap_bit_map");
                 if (cap_test(caps.data(), caps_len, m->cap_bit))
-                    feature_set(&features, fe->bit);
+                    feature_set(&to_enable, fe->bit);
                 else
-                    feature_clear(&features, fe->bit);
+                    feature_set(&to_disable, fe->bit);
             }
         }
     }
 
-    _expand_entailed_enable_bits(&features);
+    apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
 
@@ -191,44 +194,35 @@ const std::string &get_host_cpu_name() {
     return cpu_name;
 }
 
+struct PFCapMap { DWORD pf; const char *llvm_name; };
+static const PFCapMap pf_cap_map[] = {
+    {30, "aes"},        // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+    {30, "sha2"},       // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+    {31, "crc"},        // PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
+    {34, "lse"},        // PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE
+    {43, "dotprod"},    // PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+    {0, nullptr}
+};
+
 FeatureBits get_host_features() {
     FeatureBits features{};
+    FeatureBits to_enable{};
+    FeatureBits to_disable{};
 
-    const FeatureEntry *fe;
+    // Windows ABI mandates neon + fp-armv8
+    feature_set(&to_enable, find_feature("neon")->bit);
+    feature_set(&to_enable, find_feature("fp-armv8")->bit);
 
-    if ((fe = find_feature("neon"))) feature_set(&features, fe->bit);
-    if ((fe = find_feature("fp-armv8"))) feature_set(&features, fe->bit);
-
-    #ifndef PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
-    #define PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE 31
-    #endif
-    if (IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("crc"))) feature_set(&features, fe->bit);
+    for (const auto *m = pf_cap_map; m->llvm_name; m++) {
+        const FeatureEntry *fe = find_feature(m->llvm_name);
+        assert(fe && "pf_cap_map names a feature missing from the table");
+        if (IsProcessorFeaturePresent(m->pf))
+            feature_set(&to_enable, fe->bit);
+        else
+            feature_set(&to_disable, fe->bit);
     }
 
-    #ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
-    #define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
-    #endif
-    if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("aes"))) feature_set(&features, fe->bit);
-        if ((fe = find_feature("sha2"))) feature_set(&features, fe->bit);
-    }
-
-    #ifndef PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE
-    #define PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE 34
-    #endif
-    if (IsProcessorFeaturePresent(PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("lse"))) feature_set(&features, fe->bit);
-    }
-
-    #ifndef PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
-    #define PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE 43
-    #endif
-    if (IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)) {
-        if ((fe = find_feature("dotprod"))) feature_set(&features, fe->bit);
-    }
-
-    _expand_entailed_enable_bits(&features);
+    apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
 
@@ -519,7 +513,6 @@ FeatureBits get_host_features() {
     if (entry)
         features = entry->features;
 
-#if !defined(__APPLE__) && !defined(_WIN32)
     // The kernel may disable features (e.g. nosve boot param, MTE not
     // enabled). Use hwcap to detect what the kernel actually exposes,
     // and clear any table features the kernel doesn't report.
@@ -573,16 +566,19 @@ FeatureBits get_host_features() {
         {0, false, nullptr}
     };
 
+    FeatureBits to_enable{};
+    FeatureBits to_disable{};
     for (const auto *m = hwcap_map; m->llvm_name; m++) {
+        const FeatureEntry *fe = find_feature(m->llvm_name);
+        assert(fe && "hwcap_map names a feature missing from the table");
         unsigned long cap = m->is_hwcap2 ? hwcap2 : hwcap;
-        if (!(cap & m->bit)) {
-            const FeatureEntry *fe = find_feature(m->llvm_name);
-            if (fe) feature_clear(&features, fe->bit);
-        }
+        if ((cap & m->bit) != 0)
+            feature_set(&to_enable, fe->bit);
+        else
+            feature_set(&to_disable, fe->bit);
     }
-#endif
 
-    _expand_entailed_enable_bits(&features);
+    apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
 
