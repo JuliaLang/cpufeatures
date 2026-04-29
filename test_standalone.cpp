@@ -377,7 +377,7 @@ int main() {
             check(!tp::has_feature(specs[1].en_features, "rdrnd"),
                   "rdrnd should be stripped from haswell");
 
-            // Test: hw_feature_mask filtering
+            // Test: llvm_feature_mask filtering
             // Tuning features should NOT be in en_features
             check(!tp::has_feature(specs[1].en_features, "slow-3ops-lea"),
                   "tuning features should not be in en_features");
@@ -386,8 +386,8 @@ int main() {
             FeatureBits combined;
             for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
                 combined.bits[w] = specs[1].en_features.bits[w] | specs[1].dis_features.bits[w];
-            check(feature_equal(&combined, &hw_feature_mask),
-                  "en | dis should equal hw_feature_mask");
+            check(feature_equal(&combined, &llvm_feature_mask),
+                  "en | dis should equal llvm_feature_mask");
         }
 
         // Feature diff standalone tests
@@ -531,11 +531,11 @@ int main() {
             int best = 0;
             for (int i = (int)specs.size() - 1; i >= 0; i--) {
                 FeatureBits missing;
-                feature_andnot(&missing, &specs[i].en_features, &hw_feature_mask);
+                feature_andnot(&missing, &specs[i].en_features, &llvm_feature_mask);
                 // Check: does the host have all the enabled hw features of this target?
                 FeatureBits target_hw, host_hw, diff;
-                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
-                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_and_out(&target_hw, &specs[i].en_features, &llvm_feature_mask);
+                feature_and_out(&host_hw, &host->features, &llvm_feature_mask);
                 feature_andnot(&diff, &target_hw, &host_hw);
                 if (!feature_any(&diff)) {
                     best = i;
@@ -578,8 +578,8 @@ int main() {
             int best = 0;
             for (int i = (int)specs.size() - 1; i >= 0; i--) {
                 FeatureBits target_hw, host_hw, diff;
-                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
-                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_and_out(&target_hw, &specs[i].en_features, &llvm_feature_mask);
+                feature_and_out(&host_hw, &host->features, &llvm_feature_mask);
                 feature_andnot(&diff, &target_hw, &host_hw);
                 if (!feature_any(&diff)) { best = i; break; }
             }
@@ -802,6 +802,7 @@ int main() {
             for (unsigned i = 0; i < num_features; i++) {
                 if (!feature_table[i].is_hw) continue;
                 if (feature_table[i].is_featureset) continue;
+                if (feature_table[i].is_privileged) continue;
                 if (!feature_test(&categorized, feature_table[i].bit)) {
                     printf("  FAIL: HW feature '%s' is unhandled\n", feature_table[i].name);
                     missing++;

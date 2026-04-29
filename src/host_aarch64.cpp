@@ -206,8 +206,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sve2", "sve2-sha3", "sve2-sm4",
             "mte", "rand", "sm4",
             // No runtime probe support available yet.
-            "altnzcv", "clrbhb", "faminmax", "fpac", "lut",
-            "fp8", "fp8dot2", "fp8dot4", "fp8fma",
+            "altnzcv", "clrbhb", "faminmax", "lut",
+            "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
+            "lor", "ras", "predres", "specres2", "specrestrict",
 
             nullptr
         };

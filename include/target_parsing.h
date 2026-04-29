@@ -165,7 +165,7 @@ FeatureDiff compute_feature_diff(const FeatureBits &base,
 int max_vector_size(const FeatureBits &features);
 
 // Access the hw_feature_mask from generated tables
-const FeatureBits &get_hw_feature_mask();
+const FeatureBits &get_llvm_feature_mask();
 
 // ============================================================================
 // Sysimage serialization and matching

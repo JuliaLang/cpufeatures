@@ -194,6 +194,80 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
 
 #include "llvm/TargetParser/AArch64TargetParser.h"
 
+// Privileged features: per-arch list of feature names usable only at
+// higher exception / privilege levels.
+//
+// These don't affect codegen for user space applications but are
+// important to filter out from feature strings.
+
+static std::vector<StringRef> getPrivilegedFeatureNamesX86() {
+    return { "invpcid", "pconfig", "wbnoinvd", "hreset", "xsaves" };
+}
+
+static std::vector<StringRef> getPrivilegedFeatureNamesAArch64() {
+    return {
+        // Exception levels / virtualization (Arm ARM D5)
+        "el2vmsa", "el3", "sel2", "vh", "hcx", "nv", "mec", "rme",
+        // EL2 trap controls (Arm ARM D13 — FEAT_FGT)
+        "fgt",
+        // EL1+ system registers / PSTATE bits / kernel ABI
+        "pan", "pan-rwv", "uaops", "xs", "tlb-rmi",
+        // Activity monitor / RAS / MPAM / PMU programming
+        "am", "amvs", "mpam", "perfmon",
+        // Trace / profiling (EL1+ programming registers)
+        "ete", "brbe", "spe", "spe-eef", "trbe", "tracev8.4",
+        // Cache identification register (CCSIDR_EL1)
+        "ccidx",
+    };
+}
+
+static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
+    return {
+        // Hypervisor extension and the RVA23 "Augmented Hypervisor"
+        "h", "sha",
+        // Hypervisor-extension profile attributes (Sh*)
+        "shcounterenw", "shgatpa", "shtvala",
+        "shvsatpa", "shvstvala", "shvstvecd",
+        // Advanced Interrupt Architecture (M and S levels)
+        "smaia", "ssaia",
+        // Supervisor-mode extensions and profile attributes (Ss*/Su*)
+        "ssccptr", "sscofpmf", "sscounterenw", "ssnpm",
+        "ssstateen", "ssstrict", "sstc",
+        "sstvala", "sstvecd", "ssu64xl", "supm",
+        // Page-table / virtual-memory features (Sv*)
+        "svade", "svbare", "svinval", "svnapot", "svpbmt",
+    };
+}
+
+static FeatureBitset computePrivilegedMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "x86_64" || Arch == "i686")
+        Names = getPrivilegedFeatureNamesX86();
+    else if (Arch == "aarch64")
+        Names = getPrivilegedFeatureNamesAArch64();
+    else if (Arch == "riscv64")
+        Names = getPrivilegedFeatureNamesRISCV();
+
+    FeatureBitset Mask;
+    for (StringRef Name : Names) {
+        bool Found = false;
+        for (const auto &F : Features) {
+            if (F.Key == Name) {
+                Mask.set(F.Value);
+                Found = true;
+                break;
+            }
+        }
+        if (!Found) {
+            errs() << "error: privileged feature '" << Name
+                   << "' is not in the LLVM feature table for " << Arch << "\n";
+            std::abort();
+        }
+    }
+    return Mask;
+}
+
 // Label any "umbrella" features (such as "armv8.3") with `is_featureset`, to
 // signal to cpufeatures that the feature bit does not gate any dedicated HW
 // functionality of its own.
@@ -245,10 +319,9 @@ static FeatureBitset computeFeatureCollectionMask(
             }
         }
         if (!Found) {
-            // Skip rather than fail so the generator survives LLVM
-            // adding/removing collection names between versions.
-            errs() << "warn: feature collection '" << Name
-                   << "' not in feature table for " << Arch << "; skipping\n";
+            errs() << "error: feature collection '" << Name
+                   << "' is not in the LLVM feature table for " << Arch << "\n";
+            std::abort();
         }
     }
     return Mask;
@@ -261,14 +334,17 @@ static void emitFeatureTable(raw_ostream &OS,
                               unsigned NumWords) {
     FeatureBitset HWMask = computeHWMask(Features, CPUs);
     FeatureBitset CollectionMask = computeFeatureCollectionMask(Arch, Features);
+    FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
 
-    OS << "// Feature table: name, description, bit index, is_hw, is_featureset, implied features.\n";
+    OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";
+    OS << "// is_privileged, implied features.\n";
     OS << "typedef struct {\n";
     OS << "    const char *name;\n";
     OS << "    const char *desc;\n";
     OS << "    unsigned bit;                // feature bit index\n";
     OS << "    unsigned char is_hw;         // 1 = hardware feature, 0 = tuning/mode hint\n";
     OS << "    unsigned char is_featureset; // 1 = architecture-level umbrella (v8.1a, RISC-V B)\n";
+    OS << "    unsigned char is_privileged; // 1 = EL2/EL3/ring-0 only, no user-space codegen\n";
     OS << "    FeatureBits implies;         // transitively implied features\n";
     OS << "} FeatureEntry;\n\n";
 
@@ -277,13 +353,9 @@ static void emitFeatureTable(raw_ostream &OS,
     // The blacklist covers tuning hints and privileged instructions that
     // differ between Intel/AMD but don't affect user-space codegen.
     static const char *blacklist[] = {
-        // x86: tuning hints and privileged instructions
+        // x86: tuning hints
         "ermsb", "fsrm",   // tuning hints (REP MOVS speed)
         "nopl",            // baseline assumption, not CPUID-detectable
-        "invpcid",         // privileged TLB instruction
-        "pconfig",         // privileged platform configuration instruction
-        "wbnoinvd",        // privileged cache writeback instruction
-        "hreset",          // privileged history-reset instruction
         // aarch64:
         "ssbs",            // speculative execution mitigation, not codegen-relevant.
         nullptr
@@ -303,6 +375,7 @@ static void emitFeatureTable(raw_ostream &OS,
     for (const auto &F : Features) {
         bool IsHW = HWMask.test(F.Value);
         bool IsCollection = CollectionMask.test(F.Value);
+        bool IsPrivileged = PrivilegedMask.test(F.Value);
         OS << "    { \"" << F.Key << "\", \"";
         StringRef Desc(F.Desc);
         for (char C : Desc) {
@@ -313,6 +386,7 @@ static void emitFeatureTable(raw_ostream &OS,
         OS << "\", " << F.Value
            << ", " << (IsHW ? "1" : "0")
            << ", " << (IsCollection ? "1" : "0")
+           << ", " << (IsPrivileged ? "1" : "0")
            << ", ";
         emitFeatureBits(OS, F.Implies.getAsBitset(), NumWords);
         OS << " },\n";
@@ -325,6 +399,14 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "// Precomputed mask of hardware (CPUID-detectable) features\n";
     OS << "static const FeatureBits hw_feature_mask = ";
     emitFeatureBits(OS, HWMask, NumWords);
+    OS << ";\n\n";
+
+    // Emit precomputed LLVM feature mask
+    FeatureBitset LLVMMask = HWMask;
+    LLVMMask &= ~PrivilegedMask;
+    OS << "// Codegen-relevant subset of hw_feature_mask (non-privileged features)\n";
+    OS << "static const FeatureBits llvm_feature_mask = ";
+    emitFeatureBits(OS, LLVMMask, NumWords);
     OS << ";\n\n";
 }
 
