@@ -5,6 +5,7 @@
 #include "target_tables_x86_64.h"
 #include "target_parsing.h"
 
+#include <array>
 #include <cassert>
 #include <cstring>
 #include <cpuid.h>
@@ -504,6 +505,14 @@ static void for_each_schedulable_cpu(Fn &&fn) {
 #endif
 }
 
+static const char *const baseline_features[] = {
+#if defined(__x86_64__) || defined(_M_X64)
+    "64bit",
+#endif
+    "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87",
+    nullptr
+};
+
 FeatureBits get_host_features() {
     static bool cached_valid = false;
     static FeatureBits cached;
@@ -511,16 +520,9 @@ FeatureBits get_host_features() {
 
     FeatureBits features{};
 
-    // Baseline features always present
-    static const char *baseline_features[] = {
-#if defined(__x86_64__) || defined(_M_X64)
-        "64bit",
-#endif
-        "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87"
-    };
     auto apply_baseline = [&](FeatureBits &fb) {
-        for (const char *name : baseline_features)
-            feature_set(&fb, find_feature(name)->bit);
+        for (const char *const *p = baseline_features; *p; p++)
+            feature_set(&fb, find_feature(*p)->bit);
     };
     apply_baseline(features);
 
@@ -560,6 +562,41 @@ FeatureBits get_host_features() {
     cached = features;
     cached_valid = true;
     return features;
+}
+
+const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
+    static const char *empty[] = { nullptr };
+    switch (kind) {
+    case HOST_FEATURE_BASELINE:
+        return baseline_features;
+    case HOST_FEATURE_DETECTABLE: {
+        constexpr size_t N = sizeof(cpuid_features) / sizeof(cpuid_features[0]);
+        static const auto names = []() {
+            std::array<const char *, N + 1> a{};
+            for (size_t i = 0; i < N; i++) a[i] = cpuid_features[i].feature_name;
+            a[N] = nullptr;
+            return a;
+        }();
+        return names.data();
+    }
+    case HOST_FEATURE_UNDETECTABLE: {
+        static const char *names[] = {
+            // AMX extensions detectable at CPUID(0x1E,1).EAX[4..8].
+            "amx-transpose", // removed from architecture
+            "evex512", // pseudo-feature used by LLVM
+
+            // FIXME: Unimplemented detection
+            "amx-fp8", "amx-tf32", "amx-avx512", "amx-movrs",
+            "avx10.1-512", "avx10.2-256", "avx10.2-512",
+            "ccmp", "cf", "egpr", "ndd", "nf", "ppx", "push2pop2", "zu",
+            "lwp", "movrs", "usermsr", "ptwrite", "kl", "widekl",
+
+            nullptr
+        };
+        return names;
+    }
+    }
+    return empty;
 }
 
 } // namespace tp

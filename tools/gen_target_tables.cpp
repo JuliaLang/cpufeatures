@@ -192,19 +192,84 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
     return HWMask;
 }
 
+#include "llvm/TargetParser/AArch64TargetParser.h"
+
+// Label any "umbrella" features (such as "armv8.3") with `is_featureset`, to
+// signal to cpufeatures that the feature bit does not gate any dedicated HW
+// functionality of its own.
+//
+// For a 'featureset' bit, all HW / codegen support is gated by other bits.
+
+static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
+    std::vector<StringRef> Result;
+    for (const llvm::AArch64::ArchInfo *AI : llvm::AArch64::ArchInfos) {
+        // ArchFeature is "+v8.1a" — strip leading "+".
+        Result.push_back(AI->ArchFeature.drop_front());
+    }
+    return Result;
+}
+
+static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
+    // Spec-defined collections from the RISC-V ISA manual.
+    return {
+        "b",      // Bitmanip — collection of Zba+Zbb+Zbs.
+        "zk",     // Standard scalar cryptography.
+        "zkn",    // NIST Algorithm Suite.
+        "zks",    // ShangMi Algorithm Suite.
+        "zvkn",   // Vector crypto NIST.
+        "zvknc",  // Vector crypto NIST + Zvbc.
+        "zvkng",  // Vector crypto NIST + Zvkg.
+        "zvks",   // Vector crypto ShangMi.
+        "zvksc",  // Vector crypto ShangMi + Zvbc.
+        "zvksg",  // Vector crypto ShangMi + Zvkg.
+    };
+}
+
+static FeatureBitset computeFeatureCollectionMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "aarch64")
+        Names = getFeatureCollectionNamesAArch64();
+    else if (Arch == "riscv64")
+        Names = getFeatureCollectionNamesRISCV();
+    // x86_64 and fallback: no collection features.
+
+    FeatureBitset Mask;
+    for (StringRef Name : Names) {
+        bool Found = false;
+        for (const auto &F : Features) {
+            if (F.Key == Name) {
+                Mask.set(F.Value);
+                Found = true;
+                break;
+            }
+        }
+        if (!Found) {
+            // Skip rather than fail so the generator survives LLVM
+            // adding/removing collection names between versions.
+            errs() << "warn: feature collection '" << Name
+                   << "' not in feature table for " << Arch << "; skipping\n";
+        }
+    }
+    return Mask;
+}
+
 static void emitFeatureTable(raw_ostream &OS,
+                              StringRef Arch,
                               ArrayRef<SubtargetFeatureKV> Features,
                               ArrayRef<SubtargetSubTypeKV> CPUs,
                               unsigned NumWords) {
     FeatureBitset HWMask = computeHWMask(Features, CPUs);
+    FeatureBitset CollectionMask = computeFeatureCollectionMask(Arch, Features);
 
-    OS << "// Feature table: name, description, bit index, implied features, is_hw\n";
+    OS << "// Feature table: name, description, bit index, is_hw, is_featureset, implied features.\n";
     OS << "typedef struct {\n";
     OS << "    const char *name;\n";
     OS << "    const char *desc;\n";
-    OS << "    unsigned bit;         // feature bit index\n";
-    OS << "    unsigned char is_hw;  // 1 = hardware feature, 0 = tuning/mode hint\n";
-    OS << "    FeatureBits implies;  // transitively implied features\n";
+    OS << "    unsigned bit;                // feature bit index\n";
+    OS << "    unsigned char is_hw;         // 1 = hardware feature, 0 = tuning/mode hint\n";
+    OS << "    unsigned char is_featureset; // 1 = architecture-level umbrella (v8.1a, RISC-V B)\n";
+    OS << "    FeatureBits implies;         // transitively implied features\n";
     OS << "} FeatureEntry;\n\n";
 
     // Exclude features that shouldn't affect sysimage target matching.
@@ -237,6 +302,7 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "static const FeatureEntry feature_table[] = {\n";
     for (const auto &F : Features) {
         bool IsHW = HWMask.test(F.Value);
+        bool IsCollection = CollectionMask.test(F.Value);
         OS << "    { \"" << F.Key << "\", \"";
         StringRef Desc(F.Desc);
         for (char C : Desc) {
@@ -244,7 +310,10 @@ static void emitFeatureTable(raw_ostream &OS,
             else if (C == '\\') OS << "\\\\";
             else OS << C;
         }
-        OS << "\", " << F.Value << ", " << (IsHW ? "1" : "0") << ", ";
+        OS << "\", " << F.Value
+           << ", " << (IsHW ? "1" : "0")
+           << ", " << (IsCollection ? "1" : "0")
+           << ", ";
         emitFeatureBits(OS, F.Implies.getAsBitset(), NumWords);
         OS << " },\n";
     }
@@ -410,7 +479,7 @@ int main(int argc, char **argv) {
 
     emitBitsetType(OS, NumWords);
     emitFeatureEnum(OS, Features);
-    emitFeatureTable(OS, Features, CPUs, NumWords);
+    emitFeatureTable(OS, Arch, Features, CPUs, NumWords);
     emitCPUTable(OS, TT, CPUs, Features, NumWords);
     emitLookupFunctions(OS);
     emitFooter(OS, Arch);

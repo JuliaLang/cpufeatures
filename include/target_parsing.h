@@ -195,6 +195,23 @@ TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
 const std::string &get_host_cpu_name();
 FeatureBits get_host_features();
 
+enum HostFeatureDetectionKind {
+    // Features the host can probe at runtime.
+    HOST_FEATURE_DETECTABLE,
+
+    // Features mandated by the ABI / platform spec.
+    // Always present and never probed for at runtime.
+    HOST_FEATURE_BASELINE,
+
+    // Features the host has no runtime probe for.
+    // These features are dangerous to enable at runtime since `cpufeatures`
+    // will not notice when the OS or CPU does not support them.
+    HOST_FEATURE_UNDETECTABLE,
+};
+
+// Pointers are owned by the library; callers must not modify or free.
+const char *const *get_host_feature_detection(HostFeatureDetectionKind kind);
+
 // Apply the requested feature delta as `(features | to_enable) & ~to_disable`.
 //
 // Disabled features take priority over enabled ones.

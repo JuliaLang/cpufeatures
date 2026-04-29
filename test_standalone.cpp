@@ -746,6 +746,77 @@ int main() {
                    failures == 0 ? "OK (no non-hw features)" : "FAILED");
         }
 
+        printf("\n  --- HW feature detection coverage ---\n");
+        {
+            FeatureBits detectable{}, baseline{}, undetectable{};
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_DETECTABLE); *p; p++)
+                feature_set(&detectable, find_feature(*p)->bit);
+
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++)
+                feature_set(&baseline, find_feature(*p)->bit);
+
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
+                feature_set(&undetectable, find_feature(*p)->bit);
+
+            // ============================================================
+            // Any implied detectable HW bits should also be detectable
+            // or baseline so that required features are also probed.
+            // ============================================================
+            FeatureBits implied = detectable;
+            _expand_entailed_enable_bits(&implied);
+            for (unsigned i = 0; i < num_features; i++) {
+                const FeatureEntry *fe = &feature_table[i];
+                if (feature_test(&implied, fe->bit) &&
+                    !feature_test(&detectable, fe->bit) &&
+                    !feature_test(&baseline, fe->bit)) {
+                    // Failure usually indicates that a more "advanced" feature bit
+                    // had runtime probing implemented before its "dependencies"
+                    printf("  FAIL: '%s' is implied by a detectable HW bit but is "
+                           "not itself detectable (or baseline).", fe->name);
+                    check(false, "");
+                }
+            }
+
+            // ============================================================
+            // Any (non-featureset) HW bits should be marked as either part
+            // of the platform baseline OR detectable via runtime probing
+            // OR undetectable (and therefore dangerous to enable).
+            // ============================================================
+            FeatureBits categorized{};
+
+            check(!feature_intersects(&detectable, &baseline),
+                  "baseline and detectable features must be disjoint");
+
+            feature_or(&categorized, &baseline);
+            feature_or(&categorized, &detectable);
+
+            check(!feature_intersects(&categorized, &undetectable),
+                  "baseline or detectable and undetectable features must be disjoint");
+
+            feature_or(&categorized, &undetectable);
+
+            unsigned missing = 0;
+            for (unsigned i = 0; i < num_features; i++) {
+                if (!feature_table[i].is_hw) continue;
+                if (feature_table[i].is_featureset) continue;
+                if (!feature_test(&categorized, feature_table[i].bit)) {
+                    printf("  FAIL: HW feature '%s' is unhandled\n", feature_table[i].name);
+                    missing++;
+                }
+            }
+            check(missing == 0,
+                  "    All HW features must be categorized: \n"
+                  "      - baseline (always present)\n"
+                  "      - detectable (has a runtime probe implemented)\n"
+                  "      - undetectable (no runtime probe, unsafe to enable)\n"
+                  "      - featureset (only groups other features, no probe necessary)\n");
+            printf("  HW feature detection: %s\n",
+                   missing == 0 ? "OK (all HW features covered)" : "FAILED");
+        }
+
     } // end cross-arch tests
 
     if (failures > 0) {
