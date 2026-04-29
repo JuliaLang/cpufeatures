@@ -49,6 +49,36 @@ jobs:
       - name: Run test under QEMU
         run: qemu-riscv64-static -L /usr/riscv64-linux-gnu build/test_standalone || echo "QEMU test skipped (may need newer QEMU)"
 
+  # Windows x86_64 build (cross-compiled with mingw-w64, compile-only)
+  build-windows-x86:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mingw-w64 cross toolchain
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+      - name: Build library
+        run: make lib CXX=x86_64-w64-mingw32-g++ AR=x86_64-w64-mingw32-ar ARCH=x86_64
+      - name: Build test
+        run: make build/test_standalone CXX=x86_64-w64-mingw32-g++ AR=x86_64-w64-mingw32-ar ARCH=x86_64
+
+  # Windows AArch64 build (cross-compiled via llvm-mingw, compile-only)
+  build-windows-aarch64:
+    runs-on: ubuntu-24.04
+    env:
+      LLVM_MINGW_VERSION: 20260421
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install llvm-mingw cross toolchain
+        run: |
+          curl -fsSL -o llvm-mingw.tar.xz \
+            "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz"
+          tar -xf llvm-mingw.tar.xz
+          echo "$PWD/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64/bin" >> "$GITHUB_PATH"
+      - name: Build library
+        run: make lib CXX=aarch64-w64-mingw32-g++ AR=aarch64-w64-mingw32-ar ARCH=aarch64
+      - name: Build test
+        run: make build/test_standalone CXX=aarch64-w64-mingw32-g++ AR=aarch64-w64-mingw32-ar ARCH=aarch64
+
   # macOS x86_64
   build-macos-x86:
     runs-on: macos-15-intel
