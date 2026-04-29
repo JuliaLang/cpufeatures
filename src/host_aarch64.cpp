@@ -236,9 +236,10 @@ FeatureBits get_host_features() {
 
 // ============================================================================
 // Linux AArch64: CPU detection via /proc/cpuinfo
+// FreeBSD AArch64: CPU detection via MIDR_EL1
 // ============================================================================
 
-#else // Linux
+#else // Linux or FreeBSD
 
 struct ArmCPUInfo {
     unsigned implementer;
@@ -326,6 +327,52 @@ static const ArmCPUInfo arm_cpus[] = {
     {0xc0, 0xac5, "ampere1b"},
     {0, 0, nullptr}
 };
+
+#if defined(__FreeBSD__)
+static inline unsigned long _getauxval(unsigned long type) {
+    unsigned long val;
+    if (elf_aux_info((int)type, &val, sizeof(val)) != 0) {
+        return 0;
+    }
+    return val;
+}
+
+static inline unsigned int _bitslice(unsigned int reg, unsigned int msb, unsigned int lsb) {
+    unsigned long bits = msb - lsb + 1ULL;
+    unsigned long mask = (1ULL << bits) - 1ULL;
+    return (reg >> lsb) & mask;
+}
+
+namespace tp {
+// NOTE: FreeBSD reports the intersection of capabilities across CPUs, so
+// checking capabilities separately by CPU is not necessary
+const std::string &get_host_cpu_name() {
+    static std::string cpu_name;
+    if (!cpu_name.empty()) {
+        return cpu_name;
+    }
+    unsigned long midr_el1;
+    __asm__("mrs %0, MIDR_EL1" : "=r"(midr_el1));
+    unsigned implementer = _bitslice(midr_el1, 31, 24);
+    unsigned part = _bitslice(midr_el1, 15, 4);
+    for (const ArmCPUInfo *entry = arm_cpus; entry->name; entry++) {
+        if (entry->implementer == implementer && entry->part == part) {
+            cpu_name = entry->name;
+            break;
+        }
+    }
+    if (cpu_name.empty()) {
+        cpu_name = "generic";
+    }
+    return cpu_name;
+}
+} // namespace tp
+
+#else  // Linux, probably
+
+static inline unsigned long _getauxval(unsigned long type) {
+    return getauxval(type);
+}
 
 static const std::string &load_cpuinfo() {
     static std::string content;
@@ -509,6 +556,10 @@ const std::string &get_host_cpu_name() {
     cpu_name = name;
     return cpu_name;
 }
+} // namespace tp
+#endif // Linux
+
+namespace tp {
 
 FeatureBits get_host_features() {
     FeatureBits features{};
@@ -523,8 +574,8 @@ FeatureBits get_host_features() {
     // The kernel may disable features (e.g. nosve boot param, MTE not
     // enabled). Use hwcap to detect what the kernel actually exposes,
     // and clear any table features the kernel doesn't report.
-    unsigned long hwcap = getauxval(AT_HWCAP);
-    unsigned long hwcap2 = getauxval(AT_HWCAP2);
+    unsigned long hwcap = _getauxval(AT_HWCAP);
+    unsigned long hwcap2 = _getauxval(AT_HWCAP2);
 
     // Map hwcap bits → LLVM feature names.
     // If the kernel doesn't report a hwcap bit, clear the corresponding
