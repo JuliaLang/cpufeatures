@@ -263,6 +263,7 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {7, 0, CPUIDBitMapping::ECX, 12, "avx512bitalg"},
     {7, 0, CPUIDBitMapping::ECX, 14, "avx512vpopcntdq"},
     {7, 0, CPUIDBitMapping::ECX, 22, "rdpid"},
+    {7, 0, CPUIDBitMapping::ECX, 23, "kl"},
     {7, 0, CPUIDBitMapping::ECX, 25, "cldemote"},
     {7, 0, CPUIDBitMapping::ECX, 27, "movdiri"},
     {7, 0, CPUIDBitMapping::ECX, 28, "movdir64b"},
@@ -311,6 +312,12 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {0xd, 1, CPUIDBitMapping::EAX, 1, "xsavec"},
     {0xd, 1, CPUIDBitMapping::EAX, 3, "xsaves"},
 
+    // Leaf 0x14 sub 0, EBX (Intel Processor Trace)
+    {0x14, 0, CPUIDBitMapping::EBX, 4, "ptwrite"},
+
+    // Leaf 0x19 sub 0, EBX (Key Locker capabilities)
+    {0x19, 0, CPUIDBitMapping::EBX, 2, "widekl"},
+
     // Extended 0x80000008, EBX
     {0x80000008, 0, CPUIDBitMapping::EBX, 0, "clzero"},
     {0x80000008, 0, CPUIDBitMapping::EBX, 4, "rdpru"},
@@ -321,6 +328,8 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
 // the supplied baseline (CPU-table features + always-present features).
 static FeatureBits compute_features_on_current_core(const FeatureBits &baseline) {
     FeatureBits features = baseline;
+    FeatureBits to_enable{};
+    FeatureBits to_disable{};
 
     unsigned max_leaf = cpuid_max_leaf();
     unsigned max_ext = cpuid_max_ext_leaf();
@@ -334,10 +343,19 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
     unsigned cache_count = 0;
 
     for (const auto &entry : cpuid_features) {
+        const FeatureEntry *f = find_feature(entry.feature_name);
+        assert(f && "cpuid_features names a feature missing from the table");
+
         bool is_ext = (entry.leaf >= 0x80000000);
         unsigned max = is_ext ? max_ext : max_leaf;
-        if (entry.leaf > max) continue;
-
+        if (entry.leaf > max) {
+            feature_set(&to_disable, f->bit);
+            continue;
+        }
+        if (entry.leaf == 7 && entry.subleaf > cpuid(7, 0).eax) {
+            feature_set(&to_disable, f->bit);
+            continue;
+        }
         CPUIDResult r = {};
         bool found = false;
         for (unsigned c = 0; c < cache_count; c++) {
@@ -362,11 +380,10 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
         case CPUIDBitMapping::ECX: reg_val = r.ecx; break;
         case CPUIDBitMapping::EDX: reg_val = r.edx; break;
         }
-
-        if (reg_val & (1u << entry.bit)) {
-            const FeatureEntry *f = find_feature(entry.feature_name);
-            if (f) feature_set(&features, f->bit);
-        }
+        if ((reg_val & (1u << entry.bit)) != 0)
+            feature_set(&to_enable, f->bit);
+        else
+            feature_set(&to_disable, f->bit);
     }
 
     // XCR0 validation: the OS must enable state save for AVX/AVX-512/AMX.
@@ -376,6 +393,7 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
     bool has_avx_save = false;
     bool has_avx512_save = false;
     bool has_amx_save = false;
+    bool has_aeskle_save = false;
 
     if (has_xsave) {
         // Read XCR0 via XGETBV(0)
@@ -391,51 +409,27 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
         has_avx512_save = has_avx_save && (xcr0_lo & 0xe0) == 0xe0;  // bits 5,6,7
 #endif
         has_amx_save = has_xsave && (xcr0_lo & ((1 << 17) | (1 << 18))) == ((1 << 17) | (1 << 18));
+        // Not an XCR0 bit, but similarly communicates OS context switching support
+        has_aeskle_save = (max_leaf >= 0x19) && (cpuid(0x19, 0).ebx & 1);
     }
-
-    // Disable features that require OS state save support
-    auto disable_feature = [&](const char *name) {
-        const FeatureEntry *fe = find_feature(name);
-        if (fe) feature_clear(&features, fe->bit);
-    };
 
     if (!has_avx_save) {
-        static const char *avx_features[] = {
-            "avx", "avx2", "fma", "f16c", "fma4", "xop",
-            "vaes", "vpclmulqdq", "xsave", "xsaveopt", "xsavec", "xsaves",
-            nullptr
-        };
-        for (const char **f = avx_features; *f; f++) disable_feature(*f);
+        feature_set(&to_disable, find_feature("avx")->bit);
+        feature_set(&to_disable, find_feature("xsave")->bit);
         has_avx512_save = false;
     }
-
     if (!has_avx512_save) {
-        static const char *avx512_features[] = {
-            "avx512f", "avx512dq", "avx512ifma", "avx512cd",
-            "avx512bw", "avx512vl", "avx512vbmi", "avx512vpopcntdq",
-            "avx512vbmi2", "avx512vnni", "avx512bitalg",
-            "avx512vp2intersect", "avx512bf16", "avx512fp16",
-            "evex512", nullptr
-        };
-        for (const char **f = avx512_features; *f; f++) disable_feature(*f);
+        feature_set(&to_disable, find_feature("avx512f")->bit);
+        feature_set(&to_disable, find_feature("evex512")->bit);
     }
+    if (!has_amx_save)    feature_set(&to_disable, find_feature("amx-tile")->bit);
+    if (!has_aeskle_save) feature_set(&to_disable, find_feature("kl")->bit);
 
-    if (!has_amx_save) {
-        static const char *amx_features[] = {
-            "amx-tile", "amx-int8", "amx-bf16", "amx-fp16",
-            "amx-complex", "amx-fp8", "amx-transpose", "amx-avx512",
-            "amx-tf32", "amx-movrs", nullptr
-        };
-        for (const char **f = amx_features; *f; f++) disable_feature(*f);
-    }
+    // AVX-512 implies evex512
+    if (feature_test(&to_enable, find_feature("avx512f")->bit))
+        feature_set(&to_enable, find_feature("evex512")->bit);
 
-    // AVX-512 implies evex512 (only if not already disabled above)
-    const FeatureEntry *avx512f = find_feature("avx512f");
-    if (avx512f && feature_test(&features, avx512f->bit)) {
-        const FeatureEntry *evex512 = find_feature("evex512");
-        if (evex512) feature_set(&features, evex512->bit);
-    }
-
+    apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
 
@@ -525,10 +519,8 @@ FeatureBits get_host_features() {
         "cx8", "cmov", "fxsr", "mmx", "sse", "sse2", "x87"
     };
     auto apply_baseline = [&](FeatureBits &fb) {
-        for (const char *name : baseline_features) {
-            const FeatureEntry *f = find_feature(name);
-            if (f) feature_set(&fb, f->bit);
-        }
+        for (const char *name : baseline_features)
+            feature_set(&fb, find_feature(name)->bit);
     };
     apply_baseline(features);
 
@@ -565,7 +557,6 @@ FeatureBits get_host_features() {
     }
     features = all_cpu_features;
 
-    _expand_entailed_enable_bits(&features);
     cached = features;
     cached_valid = true;
     return features;
