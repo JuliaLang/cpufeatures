@@ -49,35 +49,45 @@ jobs:
       - name: Run test under QEMU
         run: qemu-riscv64-static -L /usr/riscv64-linux-gnu build/test_standalone || echo "QEMU test skipped (may need newer QEMU)"
 
-  # Windows x86_64 build (cross-compiled with mingw-w64, compile-only)
+  # Windows x86_64 build + test (native, MSYS2 UCRT64)
   build-windows-x86:
-    runs-on: ubuntu-24.04
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
-      - name: Install mingw-w64 cross toolchain
-        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
+            mingw-w64-ucrt-x86_64-toolchain
       - name: Build library
-        run: make lib CXX=x86_64-w64-mingw32-g++ AR=x86_64-w64-mingw32-ar ARCH=x86_64
-      - name: Build test
-        run: make build/test_standalone CXX=x86_64-w64-mingw32-g++ AR=x86_64-w64-mingw32-ar ARCH=x86_64
+        run: make lib
+      - name: Build and run tests
+        run: make test
 
-  # Windows AArch64 build (cross-compiled via llvm-mingw, compile-only)
+  # Windows AArch64 build + test (native ARM runner, MSYS2 CLANGARM64)
   build-windows-aarch64:
-    runs-on: ubuntu-24.04
-    env:
-      LLVM_MINGW_VERSION: 20260421
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
-      - name: Install llvm-mingw cross toolchain
-        run: |
-          curl -fsSL -o llvm-mingw.tar.xz \
-            "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VERSION}/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64.tar.xz"
-          tar -xf llvm-mingw.tar.xz
-          echo "$PWD/llvm-mingw-${LLVM_MINGW_VERSION}-ucrt-ubuntu-22.04-x86_64/bin" >> "$GITHUB_PATH"
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          install: >-
+            make
+            mingw-w64-clang-aarch64-toolchain
       - name: Build library
-        run: make lib CXX=aarch64-w64-mingw32-g++ AR=aarch64-w64-mingw32-ar ARCH=aarch64
-      - name: Build test
-        run: make build/test_standalone CXX=aarch64-w64-mingw32-g++ AR=aarch64-w64-mingw32-ar ARCH=aarch64
+        run: make lib CXX=clang++ AR=llvm-ar
+      - name: Build and run tests
+        run: make test CXX=clang++ AR=llvm-ar
 
   # macOS x86_64
   build-macos-x86:
