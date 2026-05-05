@@ -12,6 +12,7 @@
 
 CXX ?= g++
 CC ?= gcc
+AR ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -fno-exceptions -fno-rtti
 CFLAGS ?= -O2 -Wall -Wextra
 
@@ -97,7 +98,7 @@ $(BUILDDIR)/cross_arch.o: $(SRCDIR)/cross_arch.cpp $(INCDIR)/cross_arch.h | $(BU
 	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
 
 $(STATIC_LIB): $(LIB_OBJS)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 # ============================================================================
 # Tests (NO LLVM dependency)

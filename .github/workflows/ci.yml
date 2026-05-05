@@ -49,6 +49,46 @@ jobs:
       - name: Run test under QEMU
         run: qemu-riscv64-static -L /usr/riscv64-linux-gnu build/test_standalone || echo "QEMU test skipped (may need newer QEMU)"
 
+  # Windows x86_64 build + test (native, MSYS2 UCRT64)
+  build-windows-x86:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            make
+            mingw-w64-ucrt-x86_64-toolchain
+      - name: Build library
+        run: make lib
+      - name: Build and run tests
+        run: make test
+
+  # Windows AArch64 build + test (native ARM runner, MSYS2 CLANGARM64)
+  build-windows-aarch64:
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          install: >-
+            make
+            mingw-w64-clang-aarch64-toolchain
+      - name: Build library
+        run: make lib CXX=clang++ AR=llvm-ar ARCH=aarch64
+      - name: Build and run tests
+        run: make test CXX=clang++ AR=llvm-ar ARCH=aarch64
+
   # macOS x86_64
   build-macos-x86:
     runs-on: macos-15-intel
