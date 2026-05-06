@@ -12,6 +12,7 @@
 #include "cross_arch.h"
 
 #include <cstdio>
+#include <cstring>
 
 static void print_hw_features(const FeatureBits *bits) {
     int first = 1;
@@ -772,6 +773,14 @@ int main() {
                 if (feature_test(&implied, fe->bit) &&
                     !feature_test(&detectable, fe->bit) &&
                     !feature_test(&baseline, fe->bit)) {
+#if defined(_WIN32) && defined(__aarch64__)
+                    // Windows AArch64 PF flags probe several features that
+                    // architecturally require fp8 (FEAT_FP8) or sm4 (FEAT_SM4),
+                    // but no PF flag exposes those base features directly.
+                    if (strcmp(fe->name, "fp8") == 0 ||
+                        strcmp(fe->name, "sm4") == 0)
+                        continue;
+#endif
                     // Failure usually indicates that a more "advanced" feature bit
                     // had runtime probing implemented before its "dependencies"
                     printf("  FAIL: '%s' is implied by a detectable HW bit but is "
@@ -804,6 +813,12 @@ int main() {
                 if (feature_table[i].is_featureset) continue;
                 if (feature_table[i].is_privileged) continue;
                 if (!feature_test(&categorized, feature_table[i].bit)) {
+#if defined(_WIN32) && defined(__aarch64__)
+                    // see above exception
+                    if (strcmp(feature_table[i].name, "fp8") == 0 ||
+                        strcmp(feature_table[i].name, "sm4") == 0)
+                        continue;
+#endif
                     printf("  FAIL: HW feature '%s' is unhandled\n", feature_table[i].name);
                     missing++;
                 }

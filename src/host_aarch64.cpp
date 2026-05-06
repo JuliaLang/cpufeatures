@@ -235,11 +235,45 @@ const std::string &get_host_cpu_name() {
 
 struct PFCapMap { DWORD pf; const char *llvm_name; };
 static const PFCapMap pf_cap_map[] = {
-    {30, "aes"},        // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
-    {30, "sha2"},       // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
-    {31, "crc"},        // PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
-    {34, "lse"},        // PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE
-    {43, "dotprod"},    // PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+    {30, "aes"},            // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+    {30, "sha2"},           // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+    {31, "crc"},            // PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
+    {34, "lse"},            // PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE
+    {43, "dotprod"},        // PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+    {44, "jsconv"},         // PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE
+    {45, "rcpc"},           // PF_ARM_V83_LRCPC_INSTRUCTIONS_AVAILABLE
+    {46, "sve"},            // PF_ARM_SVE_INSTRUCTIONS_AVAILABLE
+    {47, "sve2"},           // PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE
+    {48, "sve2p1"},         // PF_ARM_SVE2_1_INSTRUCTIONS_AVAILABLE
+    {49, "sve-aes"},        // PF_ARM_SVE_AES_INSTRUCTIONS_AVAILABLE
+    {51, "sve-bitperm"},    // PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE
+    {54, "sve-b16b16"},     // PF_ARM_SVE_B16B16_INSTRUCTIONS_AVAILABLE
+    {55, "sve2-sha3"},      // PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE
+    {56, "sve2-sm4"},       // PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE
+    {58, "f32mm"},          // PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
+    {59, "f64mm"},          // PF_ARM_SVE_F64MM_INSTRUCTIONS_AVAILABLE
+    {62, "lse2"},           // PF_ARM_LSE2_AVAILABLE
+    {64, "sha3"},           // PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE
+    {66, "i8mm"},           // PF_ARM_V82_I8MM_INSTRUCTIONS_AVAILABLE
+    {67, "fullfp16"},       // PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE
+    {68, "bf16"},           // PF_ARM_V86_BF16_INSTRUCTIONS_AVAILABLE
+    {70, "sme"},            // PF_ARM_SME_INSTRUCTIONS_AVAILABLE
+    {71, "sme2"},           // PF_ARM_SME2_INSTRUCTIONS_AVAILABLE
+    {72, "sme2p1"},         // PF_ARM_SME2_1_INSTRUCTIONS_AVAILABLE
+    {73, "sme2p2"},         // PF_ARM_SME2_2_INSTRUCTIONS_AVAILABLE
+    {74, "ssve-aes"},       // PF_ARM_SME_AES_INSTRUCTIONS_AVAILABLE
+    {75, "ssve-bitperm"},   // PF_ARM_SME_SBITPERM_INSTRUCTIONS_AVAILABLE
+    {78, "ssve-fp8dot2"},   // PF_ARM_SME_SF8DP2_INSTRUCTIONS_AVAILABLE
+    {79, "ssve-fp8dot4"},   // PF_ARM_SME_SF8DP4_INSTRUCTIONS_AVAILABLE
+    {80, "ssve-fp8fma"},    // PF_ARM_SME_SF8FMA_INSTRUCTIONS_AVAILABLE
+    {81, "sme-f8f32"},      // PF_ARM_SME_F8F32_INSTRUCTIONS_AVAILABLE
+    {82, "sme-f8f16"},      // PF_ARM_SME_F8F16_INSTRUCTIONS_AVAILABLE
+    {83, "sme-f16f16"},     // PF_ARM_SME_F16F16_INSTRUCTIONS_AVAILABLE
+    {84, "sme-b16b16"},     // PF_ARM_SME_B16B16_INSTRUCTIONS_AVAILABLE
+    {85, "sme-f64f64"},     // PF_ARM_SME_F64F64_INSTRUCTIONS_AVAILABLE
+    {86, "sme-i16i64"},     // PF_ARM_SME_I16I64_INSTRUCTIONS_AVAILABLE
+    {87, "sme-lutv2"},      // PF_ARM_SME_LUTv2_INSTRUCTIONS_AVAILABLE
+    {88, "sme-fa64"},       // PF_ARM_SME_FA64_INSTRUCTIONS_AVAILABLE
     {0, nullptr}
 };
 
@@ -284,8 +318,19 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
-    case HOST_FEATURE_UNDETECTABLE:
-        return empty;
+    case HOST_FEATURE_UNDETECTABLE: {
+        // HW features LLVM knows about for AArch64 that have no
+        // corresponding IsProcessorFeaturePresent flag.
+        static const char *names[] = {
+            "altnzcv", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
+            "dit", "ecv", "faminmax", "flagm", "fp16fml", "fp8dot2",
+            "fp8dot4", "fp8fma", "fpac", "fptoint", "lor", "ls64",
+            "lut", "mte", "pauth", "predres", "rand", "ras",
+            "rcpc-immo", "rdm", "sb", "specres2", "specrestrict", "wfxt",
+            nullptr
+        };
+        return names;
+    }
     }
     return empty;
 }
