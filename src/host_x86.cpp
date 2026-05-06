@@ -589,7 +589,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "amx-fp8", "amx-tf32", "amx-avx512", "amx-movrs",
             "avx10.1-512", "avx10.2-256", "avx10.2-512",
             "ccmp", "cf", "egpr", "ndd", "nf", "ppx", "push2pop2", "zu",
-            "lwp", "movrs", "usermsr", "ptwrite", "kl", "widekl",
+            "lwp", "movrs", "usermsr",
 
             nullptr
         };
