@@ -119,22 +119,21 @@ std::vector<ResolvedTarget> resolve_targets(
 #endif
 
         for (const auto &feat : parsed[i].extra_features) {
-            bool enable = (feat[0] == '+');
             const char *fname = feat.c_str() + 1;
-
             const FeatureEntry *fe = find_feature(fname);
-            if (fe) {
-                FeatureBits delta{};
-                feature_set(&delta, fe->bit);
-                if (enable)
-                    apply_feature_delta(&rt.features, delta, FeatureBits{});
-                else
-                    apply_feature_delta(&rt.features, FeatureBits{}, delta);
-            } else {
+            if (!fe) {
                 if (!rt.ext_features.empty())
                     rt.ext_features += ',';
                 rt.ext_features += feat;
+                continue;
             }
+            FeatureBits delta{};
+            feature_set(&delta, fe->bit);
+            bool enable = (feat[0] == '+');
+            if (enable)
+                apply_feature_delta(&rt.features, delta, FeatureBits{});
+            else
+                apply_feature_delta(&rt.features, FeatureBits{}, delta);
         }
 
         result.push_back(std::move(rt));
@@ -486,6 +485,26 @@ void apply_feature_delta(FeatureBits *features,
     _expand_entailed_disable_bits(&to_disable);
     feature_or(features, &to_enable);
     feature_andnot(features, features, &to_disable);
+}
+
+FeatureBits apply_llvm_feature_string(std::string_view feature_string,
+                                      FeatureBits base) {
+    for (auto tok : split(feature_string, ',')) {
+        if (tok.empty() || (tok.front() != '+' && tok.front() != '-'))
+            continue;
+        bool enable = (tok.front() == '+');
+        std::string name(tok.substr(1));
+        const FeatureEntry *fe = find_feature(name.c_str());
+        if (!fe)
+            continue;
+        FeatureBits delta{};
+        feature_set(&delta, fe->bit);
+        if (enable)
+            apply_feature_delta(&base, delta, FeatureBits{});
+        else
+            apply_feature_delta(&base, FeatureBits{}, delta);
+    }
+    return base;
 }
 
 } // namespace tp

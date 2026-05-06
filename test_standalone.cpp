@@ -748,6 +748,82 @@ int main() {
 
     } // end cross-arch tests
 
+    // ============================================================
+    // apply_llvm_feature_string / feature_string_has
+    // ============================================================
+    printf("\n--- apply_llvm_feature_string ---\n");
+    {
+        auto check = [&](bool cond, const char *msg) {
+            if (!cond) { printf("  FAIL: %s\n", msg); failures++; }
+        };
+
+#if defined(__x86_64__) || defined(_M_X64)
+        // Implication: +avx512f implies +fma (via the entailment graph)
+        check(tp::feature_string_has("+avx512f", "fma"),
+              "+avx512f should imply +fma");
+        check(tp::feature_string_has("+avx512f", "avx2"),
+              "+avx512f should imply +avx2");
+        check(tp::feature_string_has("+avx512f", "avx"),
+              "+avx512f should imply +avx");
+
+        // Direct positive
+        check(tp::feature_string_has("+fma", "fma"),
+              "+fma should have fma");
+        check(tp::feature_string_has("+sse4.2,+avx", "avx"),
+              "should parse multiple +features");
+
+        // Negative
+        check(!tp::feature_string_has("+sse2", "avx2"),
+              "+sse2 alone should not have avx2");
+        check(!tp::feature_string_has("", "avx"),
+              "empty string should have no features");
+
+        // -feat overrides preceding +feat
+        check(!tp::feature_string_has("+avx2,-avx2", "avx2"),
+              "explicit -avx2 should override +avx2");
+
+        // Unknown features are ignored, known ones still apply
+        check(tp::feature_string_has("+nonexistent_feature_xyz,+fma", "fma"),
+              "unknown features should be ignored");
+
+        // Idempotent: parsing same string twice yields same result
+        auto a = tp::apply_llvm_feature_string("+avx2,+fma");
+        auto b = tp::apply_llvm_feature_string("+avx2,+fma");
+        check(feature_equal(&a, &b), "parsing should be deterministic");
+
+        // Build-then-parse round-trip via build_llvm_feature_string
+        const CPUEntry *hsw = find_cpu("haswell");
+        if (hsw) {
+            FeatureBits hsw_en;
+            for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+                hsw_en.bits[w] = hsw->features.bits[w] & hw_feature_mask.bits[w];
+            FeatureBits hsw_dis;
+            for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+                hsw_dis.bits[w] = hw_feature_mask.bits[w] & ~hsw->features.bits[w];
+            std::string fs = tp::build_llvm_feature_string(hsw_en, hsw_dis);
+            auto parsed = tp::apply_llvm_feature_string(fs);
+            check(tp::has_feature(parsed, "fma"),
+                  "round-trip: haswell features should include fma");
+            check(tp::has_feature(parsed, "avx2"),
+                  "round-trip: haswell features should include avx2");
+            check(!tp::has_feature(parsed, "avx512f"),
+                  "round-trip: haswell features should not include avx512f");
+        }
+#elif defined(__aarch64__) || defined(_M_ARM64)
+        // Just sanity-check the parser on aarch64 features
+        check(tp::feature_string_has("+neon", "neon"),
+              "aarch64: +neon should have neon");
+        check(!tp::feature_string_has("", "neon"),
+              "aarch64: empty string should have no features");
+#elif defined(__riscv) && __riscv_xlen == 64
+        check(tp::feature_string_has("+m,+a", "m"),
+              "riscv64: +m should have m");
+#endif
+
+        printf("  apply_llvm_feature_string: %s\n",
+               failures == 0 ? "OK" : "FAILED");
+    }
+
     if (failures > 0) {
         printf("\nFAILED: %d test(s) failed.\n", failures);
         return 1;

@@ -122,6 +122,25 @@ inline bool has_feature(const FeatureBits &bits, const char *name) {
     return fe && feature_test(&bits, fe->bit);
 }
 
+// Apply an LLVM-style feature string ("+a,-b,+c") on top of `base`, in order,
+// expanding implications for each delta. Unknown feature names are ignored
+// (they are typically pass-through "ext_features" the library doesn't model).
+//
+// This is the standalone analog of the per-feature loop in resolve_targets,
+// suitable for evaluating a function's "target-features" attribute against
+// the cpufeatures database.
+FeatureBits apply_llvm_feature_string(std::string_view feature_string,
+                                      FeatureBits base = FeatureBits{});
+
+// Convenience: parse `feature_string` on top of an empty bitset and check
+// whether `name` is enabled (with implications). Equivalent to
+// `has_feature(apply_llvm_feature_string(feature_string), name)`.
+inline bool feature_string_has(std::string_view feature_string,
+                               const char *name) {
+    auto fb = apply_llvm_feature_string(feature_string);
+    return has_feature(fb, name);
+}
+
 // Print available CPU targets and host info to stdout
 void print_cpu_targets();
 
