@@ -16,6 +16,15 @@ AR ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -fno-exceptions -fno-rtti
 CFLAGS ?= -O2 -Wall -Wextra
 
+TARGET_OS := $(shell $(CXX) -dumpmachine 2>/dev/null)
+ifneq (,$(findstring mingw,$(TARGET_OS))$(findstring cygwin,$(TARGET_OS)))
+  EXE := .exe
+  TEST_LDFLAGS := -static-libgcc -static-libstdc++
+endif
+ifeq ($(OS),Windows_NT)
+  EXE := .exe
+endif
+
 # Directories
 SRCDIR = src
 INCDIR = include
@@ -104,11 +113,11 @@ $(STATIC_LIB): $(LIB_OBJS)
 # Tests (NO LLVM dependency)
 # ============================================================================
 
-$(BUILDDIR)/test_standalone: test_standalone.cpp $(STATIC_LIB) $(HOST_TABLE) $(INCDIR)/cross_arch.h
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -o $@ $< -L$(BUILDDIR) -ltarget_parsing
+$(BUILDDIR)/test_standalone$(EXE): test_standalone.cpp $(STATIC_LIB) $(HOST_TABLE) $(INCDIR)/cross_arch.h
+	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -o $@ $< -L$(BUILDDIR) -ltarget_parsing $(TEST_LDFLAGS)
 
-test: $(BUILDDIR)/test_standalone
-	$(BUILDDIR)/test_standalone
+test: $(BUILDDIR)/test_standalone$(EXE)
+	$(BUILDDIR)/test_standalone$(EXE)
 
 # ============================================================================
 # Directories & clean

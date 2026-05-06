@@ -12,6 +12,7 @@
 #include "cross_arch.h"
 
 #include <cstdio>
+#include <cstring>
 
 static void print_hw_features(const FeatureBits *bits) {
     int first = 1;
@@ -377,7 +378,7 @@ int main() {
             check(!tp::has_feature(specs[1].en_features, "rdrnd"),
                   "rdrnd should be stripped from haswell");
 
-            // Test: hw_feature_mask filtering
+            // Test: llvm_feature_mask filtering
             // Tuning features should NOT be in en_features
             check(!tp::has_feature(specs[1].en_features, "slow-3ops-lea"),
                   "tuning features should not be in en_features");
@@ -386,8 +387,8 @@ int main() {
             FeatureBits combined;
             for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
                 combined.bits[w] = specs[1].en_features.bits[w] | specs[1].dis_features.bits[w];
-            check(feature_equal(&combined, &hw_feature_mask),
-                  "en | dis should equal hw_feature_mask");
+            check(feature_equal(&combined, &llvm_feature_mask),
+                  "en | dis should equal llvm_feature_mask");
         }
 
         // Feature diff standalone tests
@@ -531,11 +532,11 @@ int main() {
             int best = 0;
             for (int i = (int)specs.size() - 1; i >= 0; i--) {
                 FeatureBits missing;
-                feature_andnot(&missing, &specs[i].en_features, &hw_feature_mask);
+                feature_andnot(&missing, &specs[i].en_features, &llvm_feature_mask);
                 // Check: does the host have all the enabled hw features of this target?
                 FeatureBits target_hw, host_hw, diff;
-                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
-                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_and_out(&target_hw, &specs[i].en_features, &llvm_feature_mask);
+                feature_and_out(&host_hw, &host->features, &llvm_feature_mask);
                 feature_andnot(&diff, &target_hw, &host_hw);
                 if (!feature_any(&diff)) {
                     best = i;
@@ -578,8 +579,8 @@ int main() {
             int best = 0;
             for (int i = (int)specs.size() - 1; i >= 0; i--) {
                 FeatureBits target_hw, host_hw, diff;
-                feature_and_out(&target_hw, &specs[i].en_features, &hw_feature_mask);
-                feature_and_out(&host_hw, &host->features, &hw_feature_mask);
+                feature_and_out(&target_hw, &specs[i].en_features, &llvm_feature_mask);
+                feature_and_out(&host_hw, &host->features, &llvm_feature_mask);
                 feature_andnot(&diff, &target_hw, &host_hw);
                 if (!feature_any(&diff)) { best = i; break; }
             }
@@ -744,6 +745,92 @@ int main() {
             }
             printf("  build_feature_string: %s\n",
                    failures == 0 ? "OK (no non-hw features)" : "FAILED");
+        }
+
+        printf("\n  --- HW feature detection coverage ---\n");
+        {
+            FeatureBits detectable{}, baseline{}, undetectable{};
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_DETECTABLE); *p; p++)
+                feature_set(&detectable, find_feature(*p)->bit);
+
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++)
+                feature_set(&baseline, find_feature(*p)->bit);
+
+            for (const char *const *p =
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
+                feature_set(&undetectable, find_feature(*p)->bit);
+
+            // ============================================================
+            // Any implied detectable HW bits should also be detectable
+            // or baseline so that required features are also probed.
+            // ============================================================
+            FeatureBits implied = detectable;
+            _expand_entailed_enable_bits(&implied);
+            for (unsigned i = 0; i < num_features; i++) {
+                const FeatureEntry *fe = &feature_table[i];
+                if (feature_test(&implied, fe->bit) &&
+                    !feature_test(&detectable, fe->bit) &&
+                    !feature_test(&baseline, fe->bit)) {
+#if defined(_WIN32) && defined(__aarch64__)
+                    // Windows AArch64 PF flags probe several features that
+                    // architecturally require fp8 (FEAT_FP8) or sm4 (FEAT_SM4),
+                    // but no PF flag exposes those base features directly.
+                    if (strcmp(fe->name, "fp8") == 0 ||
+                        strcmp(fe->name, "sm4") == 0)
+                        continue;
+#endif
+                    // Failure usually indicates that a more "advanced" feature bit
+                    // had runtime probing implemented before its "dependencies"
+                    printf("  FAIL: '%s' is implied by a detectable HW bit but is "
+                           "not itself detectable (or baseline).", fe->name);
+                    check(false, "");
+                }
+            }
+
+            // ============================================================
+            // Any (non-featureset) HW bits should be marked as either part
+            // of the platform baseline OR detectable via runtime probing
+            // OR undetectable (and therefore dangerous to enable).
+            // ============================================================
+            FeatureBits categorized{};
+
+            check(!feature_intersects(&detectable, &baseline),
+                  "baseline and detectable features must be disjoint");
+
+            feature_or(&categorized, &baseline);
+            feature_or(&categorized, &detectable);
+
+            check(!feature_intersects(&categorized, &undetectable),
+                  "baseline or detectable and undetectable features must be disjoint");
+
+            feature_or(&categorized, &undetectable);
+
+            unsigned missing = 0;
+            for (unsigned i = 0; i < num_features; i++) {
+                if (!feature_table[i].is_hw) continue;
+                if (feature_table[i].is_featureset) continue;
+                if (feature_table[i].is_privileged) continue;
+                if (!feature_test(&categorized, feature_table[i].bit)) {
+#if defined(_WIN32) && defined(__aarch64__)
+                    // see above exception
+                    if (strcmp(feature_table[i].name, "fp8") == 0 ||
+                        strcmp(feature_table[i].name, "sm4") == 0)
+                        continue;
+#endif
+                    printf("  FAIL: HW feature '%s' is unhandled\n", feature_table[i].name);
+                    missing++;
+                }
+            }
+            check(missing == 0,
+                  "    All HW features must be categorized: \n"
+                  "      - baseline (always present)\n"
+                  "      - detectable (has a runtime probe implemented)\n"
+                  "      - undetectable (no runtime probe, unsafe to enable)\n"
+                  "      - featureset (only groups other features, no probe necessary)\n");
+            printf("  HW feature detection: %s\n",
+                   missing == 0 ? "OK (all HW features covered)" : "FAILED");
         }
 
     } // end cross-arch tests

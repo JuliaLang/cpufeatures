@@ -15,4 +15,9 @@ FeatureBits get_host_features() {
     return FeatureBits{};
 }
 
+const char *const *get_host_feature_detection(HostFeatureDetectionKind) {
+    static const char *empty[] = { nullptr };
+    return empty;
+}
+
 } // namespace tp

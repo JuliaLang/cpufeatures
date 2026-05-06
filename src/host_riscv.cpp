@@ -5,6 +5,7 @@
 #include "target_tables_riscv64.h"
 #include "target_parsing.h"
 
+#include <array>
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
@@ -198,6 +199,38 @@ FeatureBits get_host_features() {
 
     apply_feature_delta(&features, to_enable, to_disable);
     return features;
+}
+
+const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
+    static const char *empty[] = { nullptr };
+    switch (kind) {
+    case HOST_FEATURE_BASELINE:
+        return empty;
+    case HOST_FEATURE_DETECTABLE: {
+#ifdef __linux__
+        // +4 slots for i, m, a, unaligned-scalar-mem.
+        constexpr size_t N = sizeof(hwprobe_ext_map) / sizeof(hwprobe_ext_map[0]) + 4;
+        static const auto names = []() {
+            std::array<const char *, N> a{};
+            size_t n = 0;
+            a[n++] = "i";
+            a[n++] = "m";
+            a[n++] = "a";
+            for (const auto *m = hwprobe_ext_map; m->llvm_name; m++)
+                a[n++] = m->llvm_name;
+            a[n++] = "unaligned-scalar-mem";
+            a[n] = nullptr;
+            return a;
+        }();
+        return names.data();
+#else
+        return empty;
+#endif
+    }
+    case HOST_FEATURE_UNDETECTABLE:
+        return empty;
+    }
+    return empty;
 }
 
 } // namespace tp

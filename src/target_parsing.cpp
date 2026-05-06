@@ -205,11 +205,11 @@ int max_vector_size(const FeatureBits &bits) {
 }
 
 // ============================================================================
-// hw_feature_mask access
+// llvm_feature_mask access
 // ============================================================================
 
-const FeatureBits &get_hw_feature_mask() {
-    return hw_feature_mask;
+const FeatureBits &get_llvm_feature_mask() {
+    return llvm_feature_mask;
 }
 
 // ============================================================================
@@ -220,7 +220,7 @@ std::string build_feature_string(const FeatureBits &features,
                                  const FeatureBits *baseline) {
     std::string result;
     for (unsigned i = 0; i < num_features; i++) {
-        if (!feature_test(&hw_feature_mask, feature_table[i].bit))
+        if (!feature_test(&llvm_feature_mask, feature_table[i].bit))
             continue;
         int in_feat = feature_test(&features, feature_table[i].bit);
         int in_base = baseline ? feature_test(baseline, feature_table[i].bit) : 0;
@@ -243,7 +243,7 @@ std::string build_llvm_feature_string(const FeatureBits &enabled,
                                               const FeatureBits &disabled) {
     std::string result;
     for (unsigned i = 0; i < num_features; i++) {
-        if (!feature_test(&hw_feature_mask, feature_table[i].bit))
+        if (!feature_test(&llvm_feature_mask, feature_table[i].bit))
             continue;
         bool in_en = feature_test(&enabled, feature_table[i].bit);
         bool in_dis = feature_test(&disabled, feature_table[i].bit);
@@ -332,8 +332,8 @@ std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
 
         // Compute hw-masked enabled and disabled features
         for (int w = 0; w < TARGET_FEATURE_WORDS; w++) {
-            spec.en_features.bits[w] = rt.features.bits[w] & hw_feature_mask.bits[w];
-            spec.dis_features.bits[w] = hw_feature_mask.bits[w] & ~rt.features.bits[w];
+            spec.en_features.bits[w] = rt.features.bits[w] & llvm_feature_mask.bits[w];
+            spec.dis_features.bits[w] = llvm_feature_mask.bits[w] & ~rt.features.bits[w];
         }
 
         // Build LLVM feature string
