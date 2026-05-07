@@ -741,7 +741,9 @@ FeatureBits get_host_features() {
     unsigned long hwcaps[3] = {
         _getauxval(AT_HWCAP),
         _getauxval(AT_HWCAP2),
+#ifdef AT_HWCAP3
         _getauxval(AT_HWCAP3),
+#endif
     };
 
     FeatureBits to_enable{};
