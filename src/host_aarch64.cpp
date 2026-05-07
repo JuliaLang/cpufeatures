@@ -432,6 +432,15 @@ static const ArmCPUInfo arm_cpus[] = {
 };
 
 #if defined(__FreeBSD__)
+
+// These were introduced in FreeBSD 15.0
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 38
+#endif
+#ifndef AT_HWCAP4
+#define AT_HWCAP4 39
+#endif
+
 static inline unsigned long _getauxval(unsigned long type) {
     unsigned long val;
     if (elf_aux_info((int)type, &val, sizeof(val)) != 0) {
@@ -472,6 +481,14 @@ const std::string &get_host_cpu_name() {
 } // namespace tp
 
 #else  // Linux, probably
+
+// These were introduced in glibc 2.39
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 29
+#endif
+#ifndef AT_HWCAP4
+#define AT_HWCAP4 30
+#endif
 
 static inline unsigned long _getauxval(unsigned long type) {
     return getauxval(type);
@@ -738,12 +755,11 @@ FeatureBits get_host_features() {
     // The kernel may disable features (e.g. nosve boot param, MTE not
     // enabled). Use hwcap to detect what the kernel actually exposes,
     // and clear any table features the kernel doesn't report.
-    unsigned long hwcaps[3] = {
+    unsigned long hwcaps[] = {
         _getauxval(AT_HWCAP),
         _getauxval(AT_HWCAP2),
-#ifdef AT_HWCAP3
         _getauxval(AT_HWCAP3),
-#endif
+        _getauxval(AT_HWCAP4),
     };
 
     FeatureBits to_enable{};
