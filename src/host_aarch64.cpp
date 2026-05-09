@@ -66,9 +66,9 @@ const std::string &get_host_cpu_name() {
     case CPUFAMILY_ARM_DONAN:
     case CPUFAMILY_ARM_BRAVA:
         name = "apple-m4"; break;
-    // case CPUFAMILY_ARM_TAHITI:
-    // case CPUFAMILY_ARM_TUPAI:
-    //     name = "apple-a18"; break; // Uncomment once tables are generated from LLVM 21
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_TUPAI:
+        name = "apple-a18"; break;
     // case CPUFAMILY_ARM_HIDRA:
     // case CPUFAMILY_ARM_SOTRA:
     //     name = "apple-m5"; break; // Uncomment once tables are generated from LLVM 22
