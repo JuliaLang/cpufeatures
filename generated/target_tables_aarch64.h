@@ -692,8 +692,8 @@ static const FeatureEntry feature_table[] = {
     { "sve2", "Enable Scalable Vector Extension 2 (SVE2) instructions", 192, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x8000000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "sve2-aes", "Shorthand for +sve2+sve-aes", 6, 0, 1, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x9ULL, 0x0ULL } } },
     { "sve2-bitperm", "Shorthand for +sve2+sve-bitperm", 7, 0, 1, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x81ULL, 0x0ULL } } },
-    { "sve2-sha3", "Shorthand for +sve2+sve-sha3", 8, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x101ULL, 0x0ULL } } },
-    { "sve2-sm4", "Shorthand for +sve2+sve-sm4", 9, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x201ULL, 0x0ULL } } },
+    { "sve2-sha3", "Shorthand for +sve2+sve-sha3", 8, 0, 1, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x101ULL, 0x0ULL } } },
+    { "sve2-sm4", "Shorthand for +sve2+sve-sm4", 9, 0, 1, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x201ULL, 0x0ULL } } },
     { "sve2p1", "Enable Scalable Vector Extension 2.1 instructions", 193, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x1ULL, 0x0ULL } } },
     { "sve2p2", "Enable Armv9.6-A Scalable Vector Extension 2.2 instructions", 194, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x2ULL, 0x0ULL } } },
     { "tagged-globals", "Use an instruction sequence for taking the address of a global that allows a memory tag in the upper address bits", 216, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -752,10 +752,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 319;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f60b0dULL, 0x48e07febfc700affULL, 0xfefffffc000001ffULL, 0xf7fe0390d047afULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x48e07febfc700affULL, 0xfefffffc000001ffULL, 0xf7fe0390d047afULL, 0x0ULL } };
 
 // Codegen-relevant subset of hw_feature_mask (non-privileged features)
-static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20b01ULL, 0x40801f4bf8300a7fULL, 0xfe5ffff40000017aULL, 0xf7fe01100047afULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x40801f4bf8300a7fULL, 0xfe5ffff40000017aULL, 0xf7fe01100047afULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {

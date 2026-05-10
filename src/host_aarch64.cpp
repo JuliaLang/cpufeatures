@@ -203,7 +203,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         static const char *names[] = {
             // Never present on Apple Silicon.
             "sve", "sve-aes", "sve-bitperm",
-            "sve2", "sve2-sha3", "sve2-sm4",
+            "sve2", "sve-sha3", "sve-sm4",
             "mte", "rand", "sm4",
             // No runtime probe support available yet.
             "altnzcv", "clrbhb", "faminmax", "lut",
@@ -256,8 +256,8 @@ static const PFCapMap pf_cap_map[] = {
     {49, "sve-aes"},        // PF_ARM_SVE_AES_INSTRUCTIONS_AVAILABLE
     {51, "sve-bitperm"},    // PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE
     {54, "sve-b16b16"},     // PF_ARM_SVE_B16B16_INSTRUCTIONS_AVAILABLE
-    {55, "sve2-sha3"},      // PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE
-    {56, "sve2-sm4"},       // PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE
+    {55, "sve-sha3"},       // PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE
+    {56, "sve-sm4"},        // PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE
     {58, "f32mm"},          // PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
     {59, "f64mm"},          // PF_ARM_SVE_F64MM_INSTRUCTIONS_AVAILABLE
     {62, "lse2"},           // PF_ARM_LSE2_AVAILABLE
@@ -670,8 +670,8 @@ static const HWCapMap hwcap_map[] = {
     {1UL <<  1, 1, "sve2"},          // HWCAP2_SVE2
     {1UL <<  2, 1, "sve-aes"},       // HWCAP2_SVEAES
     {1UL <<  4, 1, "sve-bitperm"},   // HWCAP2_SVEBITPERM
-    {1UL <<  5, 1, "sve2-sha3"},     // HWCAP2_SVESHA3
-    {1UL <<  6, 1, "sve2-sm4"},      // HWCAP2_SVESM4
+    {1UL <<  5, 1, "sve-sha3"},      // HWCAP2_SVESHA3
+    {1UL <<  6, 1, "sve-sm4"},       // HWCAP2_SVESM4
     {1UL <<  7, 1, "altnzcv"},       // HWCAP2_FLAGM2
     {1UL <<  8, 1, "fptoint"},       // HWCAP2_FRINT
     {1UL << 10, 1, "f32mm"},         // HWCAP2_SVEF32MM

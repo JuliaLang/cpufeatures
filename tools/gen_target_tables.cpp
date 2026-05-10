@@ -297,6 +297,8 @@ static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
     // these are just aliases for "+sve2,+sve-aes" etc.
     Result.push_back("sve2-aes");
     Result.push_back("sve2-bitperm");
+    Result.push_back("sve2-sha3");
+    Result.push_back("sve2-sm4");
     return Result;
 }
 
