@@ -1,13 +1,38 @@
+# -*- makefile -*-
+
 # Table generation — downloads a pre-built LLVM release and uses it.
 #
 # Usage:
-#   make -f Makefile.generate                    # download LLVM and generate
+#   make -f Makefile.generate                    # auto-detect host, download LLVM and generate
 #   make -f Makefile.generate LLVM_PREFIX=/path  # use existing LLVM install
 #
+# Supported hosts: Linux and macOS, x86-64 and aarch64.
 # The generated headers are committed to the repo. Normal builds don't need this.
 
 LLVM_VER ?= 20.1.8
-LLVM_RELEASE_URL ?= https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VER)/LLVM-$(LLVM_VER)-Linux-X64.tar.xz
+
+# Auto-detect host OS and architecture
+HOST_OS   := $(shell uname -s)
+HOST_ARCH := $(shell uname -m)
+
+# Map to LLVM release tarball naming (OS part)
+ifeq ($(HOST_OS),Darwin)
+  LLVM_OS := macOS
+else
+  LLVM_OS := Linux
+endif
+
+# Map to LLVM release tarball naming (arch part); also derive the target triple arch
+ifeq ($(HOST_ARCH),$(filter $(HOST_ARCH),arm64 aarch64))
+  LLVM_ARCH        := ARM64
+  LLVM_TRIPLE_ARCH := aarch64
+else
+  LLVM_ARCH        := X64
+  LLVM_TRIPLE_ARCH := x86_64
+endif
+
+LLVM_TARBALL      := LLVM-$(LLVM_VER)-$(LLVM_OS)-$(LLVM_ARCH).tar.xz
+LLVM_RELEASE_URL  ?= https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LLVM_VER)/$(LLVM_TARBALL)
 
 # Use clang++ from the LLVM release (static libs are LLVM bitcode, need LTO-aware linker)
 GEN_CXX = $(LLVM_PREFIX)/bin/clang++
@@ -17,24 +42,38 @@ GENDIR = generated
 BUILDDIR = build
 LLVM_DL = $(BUILDDIR)/llvm-$(LLVM_VER)
 
-# If LLVM_PREFIX is set, use it directly; otherwise download
+# If LLVM_PREFIX is set by the user, use it directly; otherwise download into BUILDDIR
 LLVM_PREFIX ?= $(LLVM_DL)
 
 LLVM_CONFIG = $(LLVM_PREFIX)/bin/llvm-config
 # Use = (not :=) so these are expanded lazily, after LLVM is downloaded
-LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags 2>/dev/null)
-LLVM_LDFLAGS = $(shell $(LLVM_CONFIG) --ldflags --libs \
+LLVM_CXXFLAGS    = $(shell $(LLVM_CONFIG) --cxxflags 2>/dev/null)
+LLVM_LDFLAGS     = $(shell $(LLVM_CONFIG) --ldflags --libs \
 	mc core support targetparser \
 	x86desc x86info aarch64desc aarch64info riscvdesc riscvinfo \
 	2>/dev/null)
 LLVM_SYSTEM_LIBS = $(shell $(LLVM_CONFIG) --system-libs 2>/dev/null)
-LLVM_PREFIX_ABS = $(abspath $(LLVM_PREFIX))
-LLVM_LIBCXX_DIR = $(LLVM_PREFIX_ABS)/lib/x86_64-unknown-linux-gnu
-LLVM_EXTRA_FLAGS = -fuse-ld=lld \
+LLVM_PREFIX_ABS  = $(abspath $(LLVM_PREFIX))
+
+# Linux: use lld and point at the arch-specific bundled libc++ directory.
+# macOS: system linker and libc++ — no extra flags needed beyond -L.
+ifeq ($(HOST_OS),Linux)
+  LLVM_LIBCXX_DIR  = $(LLVM_PREFIX_ABS)/lib/$(LLVM_TRIPLE_ARCH)-unknown-linux-gnu
+  LLVM_EXTRA_FLAGS = -fuse-ld=lld \
 	-L$(LLVM_PREFIX_ABS)/lib -L$(LLVM_LIBCXX_DIR) \
 	-Wl,-rpath,$(LLVM_PREFIX_ABS)/lib -Wl,-rpath,$(LLVM_LIBCXX_DIR)
+else
+  LLVM_EXTRA_FLAGS = -L$(LLVM_PREFIX_ABS)/lib
+endif
 
 GEN_TOOL = $(BUILDDIR)/gen_target_tables
+
+# Only depend on the downloaded LLVM when not using a user-supplied LLVM_PREFIX
+ifeq ($(LLVM_PREFIX),$(LLVM_DL))
+  LLVM_DOWNLOAD_DEP = $(LLVM_DL)/.downloaded
+else
+  LLVM_DOWNLOAD_DEP =
+endif
 
 .PHONY: all clean download
 
@@ -43,9 +82,9 @@ all: $(GENDIR)/target_tables_x86_64.h $(GENDIR)/target_tables_aarch64.h $(GENDIR
 	@echo "Tables regenerated with LLVM $(LLVM_VER). Review and commit:"
 	@ls -1 $(GENDIR)/target_tables_*.h
 
-# Download LLVM release (only if not using LLVM_PREFIX override)
+# Download LLVM release (only when LLVM_PREFIX is not overridden)
 $(LLVM_DL)/.downloaded: | $(BUILDDIR)
-	@echo "Downloading LLVM $(LLVM_VER)..."
+	@echo "Downloading LLVM $(LLVM_VER) for $(LLVM_OS)-$(LLVM_ARCH)..."
 	rm -rf $(LLVM_DL)
 	mkdir -p $(LLVM_DL)
 	curl -fSL $(LLVM_RELEASE_URL) | tar xJ --strip-components=1 -C $(LLVM_DL)
@@ -54,7 +93,7 @@ $(LLVM_DL)/.downloaded: | $(BUILDDIR)
 download: $(LLVM_DL)/.downloaded
 
 # Build the generator tool (links LLVM)
-$(GEN_TOOL): $(TOOLDIR)/gen_target_tables.cpp $(LLVM_DL)/.downloaded | $(BUILDDIR)
+$(GEN_TOOL): $(TOOLDIR)/gen_target_tables.cpp $(LLVM_DOWNLOAD_DEP) | $(BUILDDIR)
 	$(GEN_CXX) $(LLVM_CXXFLAGS) $(LLVM_EXTRA_FLAGS) -o $@ $< $(LLVM_LDFLAGS) $(LLVM_SYSTEM_LIBS)
 
 # Generate table headers

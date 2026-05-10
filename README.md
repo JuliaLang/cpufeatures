@@ -7,7 +7,7 @@ This library was developed to simplify the handling of cpufeatures in Julia
 ## Development
 `Makefile` has build and test targets for development of the library itself
 
-`Makefile.generate` downloads a x86-linux build of LLVM from LLVMs own releases and regenerates the tables.
+`Makefile.generate` downloads a build of LLVM from LLVMs own releases and regenerates the tables, based on host platform (supported systems: Linux and macOS, with x86-64 and aarch64 architectures).
 
 ## Compatibility
 Currently supports x86, aarch64 and RISCV on windows and unixes
