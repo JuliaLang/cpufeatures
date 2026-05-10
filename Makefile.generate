@@ -56,14 +56,23 @@ LLVM_SYSTEM_LIBS = $(shell $(LLVM_CONFIG) --system-libs 2>/dev/null)
 LLVM_PREFIX_ABS  = $(abspath $(LLVM_PREFIX))
 
 # Linux: use lld and point at the arch-specific bundled libc++ directory.
-# macOS: system linker and libc++ — no extra flags needed beyond -L.
+# macOS: the bundled clang++ ships its own libc++ headers but needs the macOS SDK
+#        to resolve system headers underneath them (e.g. <stdlib.h> for ldiv_t).
+#        Pass -isysroot so the bundled headers can find system headers correctly.
 ifeq ($(HOST_OS),Linux)
   LLVM_LIBCXX_DIR  = $(LLVM_PREFIX_ABS)/lib/$(LLVM_TRIPLE_ARCH)-unknown-linux-gnu
   LLVM_EXTRA_FLAGS = -fuse-ld=lld \
 	-L$(LLVM_PREFIX_ABS)/lib -L$(LLVM_LIBCXX_DIR) \
 	-Wl,-rpath,$(LLVM_PREFIX_ABS)/lib -Wl,-rpath,$(LLVM_LIBCXX_DIR)
 else
-  LLVM_EXTRA_FLAGS = -L$(LLVM_PREFIX_ABS)/lib
+  MACOS_SYSROOT    := $(shell xcrun --show-sdk-path 2>/dev/null)
+  # -lc++ -lc++abi: link the bundled libc++ (LLVM prebuilt .a files reference its ABI,
+  #   not the system libc++); -L must precede -l so the bundled dylib wins over /usr/lib.
+  # -Wl,-rpath: embed the search path so the binary finds the bundled dylib at runtime.
+  LLVM_EXTRA_FLAGS = -isysroot $(MACOS_SYSROOT) \
+	-L$(LLVM_PREFIX_ABS)/lib \
+	-lc++ -lc++abi \
+	-Wl,-rpath,$(LLVM_PREFIX_ABS)/lib
 endif
 
 GEN_TOOL = $(BUILDDIR)/gen_target_tables
