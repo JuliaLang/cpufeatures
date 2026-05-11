@@ -6,10 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  # For PRs, group by head_ref so a force-push cancels prior in-progress runs.
+  # For main pushes, head_ref is empty so we fall back to run_id (unique → no cancel).
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   # x86_64 Linux build + test
   build-linux-x86:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       matrix:
         compiler: [g++, clang++]
@@ -24,6 +31,7 @@ jobs:
   # AArch64 Linux build + test (cross-compiled, test via QEMU)
   build-linux-aarch64:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install cross toolchain
@@ -38,6 +46,7 @@ jobs:
   # RISC-V 64 Linux build (cross-compiled)
   build-linux-riscv64:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install cross toolchain
@@ -52,6 +61,7 @@ jobs:
   # Windows x86_64 build + test (native, MSYS2 UCRT64)
   build-windows-x86:
     runs-on: windows-latest
+    timeout-minutes: 30
     defaults:
       run:
         shell: msys2 {0}
@@ -72,6 +82,7 @@ jobs:
   # Windows AArch64 build + test (native ARM runner, MSYS2 CLANGARM64)
   build-windows-aarch64:
     runs-on: windows-11-arm
+    timeout-minutes: 30
     defaults:
       run:
         shell: msys2 {0}
@@ -92,6 +103,7 @@ jobs:
   # macOS x86_64
   build-macos-x86:
     runs-on: macos-15-intel
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Build and test
@@ -100,6 +112,7 @@ jobs:
   # macOS AArch64 (Apple Silicon)
   build-macos-aarch64:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Build and test
@@ -108,6 +121,7 @@ jobs:
   # Check that committed tables are up to date
   check-generated:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Regenerate tables
