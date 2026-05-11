@@ -294,6 +294,9 @@ static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
     }
     // alias for "+aes,+sha2"
     Result.push_back("crypto");
+    // these are just aliases for "+sve2,+sve-aes" etc.
+    Result.push_back("sve2-aes");
+    Result.push_back("sve2-bitperm");
     return Result;
 }
 
