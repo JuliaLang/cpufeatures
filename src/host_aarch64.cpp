@@ -149,6 +149,10 @@ static bool cap_test(const uint8_t *caps, size_t caps_len, unsigned bit) {
 }
 
 FeatureBits get_host_features() {
+    static bool cached_valid = false;
+    static FeatureBits cached;
+    if (cached_valid) return cached;
+
     FeatureBits features{};
     apply_host_baseline(&features);
 
@@ -173,6 +177,9 @@ FeatureBits get_host_features() {
     }
 
     apply_feature_delta(&features, to_enable, to_disable);
+
+    cached = features;
+    cached_valid = true;
     return features;
 }
 
@@ -282,6 +289,10 @@ static const PFCapMap pf_cap_map[] = {
 };
 
 FeatureBits get_host_features() {
+    static bool cached_valid = false;
+    static FeatureBits cached;
+    if (cached_valid) return cached;
+
     FeatureBits features{};
     apply_host_baseline(&features);
 
@@ -298,6 +309,9 @@ FeatureBits get_host_features() {
     }
 
     apply_feature_delta(&features, to_enable, to_disable);
+
+    cached = features;
+    cached_valid = true;
     return features;
 }
 
@@ -713,6 +727,10 @@ static const HWCapMap hwcap_map[] = {
 };
 
 FeatureBits get_host_features() {
+    static bool cached_valid = false;
+    static FeatureBits cached;
+    if (cached_valid) return cached;
+
     FeatureBits features{};
     apply_host_baseline(&features);
 
@@ -737,6 +755,9 @@ FeatureBits get_host_features() {
     }
 
     apply_feature_delta(&features, to_enable, to_disable);
+
+    cached = features;
+    cached_valid = true;
     return features;
 }
 
