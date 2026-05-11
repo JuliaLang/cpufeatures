@@ -60,7 +60,7 @@ For each unhandled feature, determine which category it belongs to and add it to
 #### Deciding the category
 
 **Featureset / privileged** — check the generated header (`generated/target_tables_<arch>.h`). If the entry has `is_featureset=1` or `is_privileged=1`, the test already ignores it; no action is needed.
-This likely indicates the generator itself needs updating.
+If a feature is not correctly set as `is_featureset` or `is_privileged`, this likely indicates the generator itself needs updating.
 
 **Detectable** — check whether the OS exposes a runtime probe for the feature (see the reference links per architecture below).
 If a probe exists, add the feature to the appropriate probe map in the host file so it is enabled or disabled at runtime.
