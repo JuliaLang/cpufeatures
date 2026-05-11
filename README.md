@@ -59,15 +59,16 @@ For each unhandled feature, determine which category it belongs to and add it to
 
 #### Deciding the category
 
-**Featureset / privileged** — check the generated header (`generated/target_tables_<arch>.h`). If the entry has `is_featureset=1` or `is_privileged=1`, the test already ignores it; no action is needed.
+**Featureset / privileged** — check the generated header (`generated/target_tables_<arch>.h`). If the entry has `is_featureset=1` or `is_privileged=1`, no runtime probe is required.
+If a "feature" is an alias for multiple other HW bits and does not gate any HW functionality of its own (e.g. "+zk" is an alias for "+zkn,+zkr,+zkt" on RISC-V),
+then it should be labeled as `is_featureset = 1`.
 If a feature is not correctly set as `is_featureset` or `is_privileged`, this likely indicates the generator itself needs updating.
 
 **Detectable** — check whether the OS exposes a runtime probe for the feature (see the reference links per architecture below).
 If a probe exists, add the feature to the appropriate probe map in the host file so it is enabled or disabled at runtime.
-If the probe covers a shorthand name that implies other HW bits, those underlying bits must also be added to the map with the same probe key, so they are individually marked detectable.
 
 **Undetectable** — if no runtime probe exists on a given platform, add the feature name to that platform's `HOST_FEATURE_UNDETECTABLE` list.
-This documents the gap explicitly and prevents silent misdetection.
+This documents the gap explicitly and makes the feature unavailable for runtime execution on that platform.
 
 **Baseline** — if the feature is guaranteed present by the platform ABI on a specific OS (without needing a probe), add it to `HOST_FEATURE_BASELINE` for that platform instead.
 
