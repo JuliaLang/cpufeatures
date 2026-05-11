@@ -184,7 +184,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     static const char *empty[] = { nullptr };
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
-        static const char *names[] = { "fp-armv8", nullptr };
+        static const char *names[] = { "fp-armv8", "chk", nullptr };
         return names;
     }
     case HOST_FEATURE_DETECTABLE: {
@@ -209,6 +209,14 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "altnzcv", "clrbhb", "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
             "lor", "mops", "ras", "predres", "specres2", "specrestrict",
+            "f32mm", "f64mm", "f8f16mm", "f8f32mm",
+            "fprcvt", "gcs", "lse128", "lsfe", "rcpc3",
+            "sve-b16b16", "sve-f16f32mm", "sve2p1", "sve2p2",
+            "sme-b16b16", "sme-f16f16", "sme-f8f16", "sme-f8f32",
+            "sme-fa64", "sme-lutv2", "sme-mop4", "sme-tmop",
+            "sme2p1", "sme2p2",
+            "ssve-aes", "ssve-bitperm",
+            "ssve-fp8dot2", "ssve-fp8dot4", "ssve-fp8fma",
 
             nullptr
         };
@@ -303,7 +311,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     static const char *empty[] = { nullptr };
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
-        static const char *names[] = { "neon", "fp-armv8", nullptr };
+        static const char *names[] = { "neon", "fp-armv8", "chk", nullptr };
         return names;
     }
     case HOST_FEATURE_DETECTABLE: {
@@ -323,10 +331,12 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // corresponding IsProcessorFeaturePresent flag.
         static const char *names[] = {
             "altnzcv", "bti", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
-            "dit", "ecv", "faminmax", "flagm", "fp16fml", "fp8dot2",
-            "fp8dot4", "fp8fma", "fpac", "fptoint", "hbc", "lor", "ls64",
-            "lut", "mops", "mte", "pauth", "predres", "rand", "ras",
-            "rcpc-immo", "rdm", "sb", "specres2", "specrestrict", "wfxt",
+            "dit", "ecv", "f8f16mm", "f8f32mm", "faminmax", "flagm",
+            "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
+            "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
+            "mops", "mte", "pauth", "predres", "rand", "ras",
+            "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
+            "specres2", "specrestrict", "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
         };
         return names;
@@ -644,6 +654,17 @@ static const HWCapMap hwcap_map[] = {
     // {1UL << 28, 0, "ssbs"},       // HWCAP_SSBS — not codegen-relevant
     {1UL << 29, 0, "sb"},            // HWCAP_SB
     {1UL << 30, 0, "pauth"},         // HWCAP_PACA
+    {1UL << 32, 0, "gcs"},           // HWCAP_GCS
+    {1UL << 34, 0, "fprcvt"},        // HWCAP_FPRCVT
+    {1UL << 35, 0, "f8f32mm"},       // HWCAP_F8MM8
+    {1UL << 36, 0, "f8f16mm"},       // HWCAP_F8MM4
+    {1UL << 37, 0, "sve-f16f32mm"},  // HWCAP_SVE_F16MM
+    {1UL << 41, 0, "sve2p2"},        // HWCAP_SVE2P2
+    {1UL << 42, 0, "sme2p2"},        // HWCAP_SME2P2
+    {1UL << 43, 0, "ssve-bitperm"},  // HWCAP_SME_SBITPERM
+    {1UL << 44, 0, "ssve-aes"},      // HWCAP_SME_AES
+    {1UL << 46, 0, "sme-tmop"},      // HWCAP_SME_STMOP
+    {1UL << 47, 0, "sme-mop4"},      // HWCAP_SME_SMOP4
     // AT_HWCAP2
     {1UL <<  0, 1, "ccdp"},          // HWCAP2_DCPODP (FEAT_DPB2)
     {1UL <<  1, 1, "sve2"},          // HWCAP2_SVE2
@@ -653,6 +674,8 @@ static const HWCapMap hwcap_map[] = {
     {1UL <<  6, 1, "sve2-sm4"},      // HWCAP2_SVESM4
     {1UL <<  7, 1, "altnzcv"},       // HWCAP2_FLAGM2
     {1UL <<  8, 1, "fptoint"},       // HWCAP2_FRINT
+    {1UL << 10, 1, "f32mm"},         // HWCAP2_SVEF32MM
+    {1UL << 11, 1, "f64mm"},         // HWCAP2_SVEF64MM
     {1UL << 13, 1, "i8mm"},          // HWCAP2_I8MM
     {1UL << 14, 1, "bf16"},          // HWCAP2_BF16
     {1UL << 16, 1, "rand"},          // HWCAP2_RNG
@@ -662,18 +685,33 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 23, 1, "sme"},           // HWCAP2_SME
     {1UL << 24, 1, "sme-i16i64"},    // HWCAP2_SME_I16I64
     {1UL << 25, 1, "sme-f64f64"},    // HWCAP2_SME_F64F64
+    {1UL << 30, 1, "sme-fa64"},      // HWCAP2_SME_FA64
     {1UL << 31, 1, "wfxt"},          // HWCAP2_WFXT
     {1UL << 34, 1, "cssc"},          // HWCAP2_CSSC
+    {1UL << 36, 1, "sve2p1"},        // HWCAP2_SVE2P1
     {1UL << 37, 1, "sme2"},          // HWCAP2_SME2
+    {1UL << 38, 1, "sme2p1"},        // HWCAP2_SME2P1
+    {1UL << 41, 1, "sme-b16b16"},    // HWCAP2_SME_B16B16
+    {1UL << 42, 1, "sme-f16f16"},    // HWCAP2_SME_F16F16
     {1UL << 43, 1, "mops"},          // HWCAP2_MOPS
     {1UL << 44, 1, "hbc"},           // HWCAP2_HBC
+    {1UL << 45, 1, "sve-b16b16"},    // HWCAP2_SVE_B16B16
+    {1UL << 46, 1, "rcpc3"},         // HWCAP2_LRCPC3
+    {1UL << 47, 1, "lse128"},        // HWCAP2_LSE128
     {1UL << 49, 1, "lut"},           // HWCAP2_LUT
     {1UL << 50, 1, "faminmax"},      // HWCAP2_FAMINMAX
     {1UL << 51, 1, "fp8"},           // HWCAP2_F8CVT
     {1UL << 52, 1, "fp8fma"},        // HWCAP2_F8FMA
     {1UL << 53, 1, "fp8dot4"},       // HWCAP2_F8DP4
     {1UL << 54, 1, "fp8dot2"},       // HWCAP2_F8DP2
+    {1UL << 57, 1, "sme-lutv2"},     // HWCAP2_SME_LUTV2
+    {1UL << 58, 1, "sme-f8f16"},     // HWCAP2_SME_F8F16
+    {1UL << 59, 1, "sme-f8f32"},     // HWCAP2_SME_F8F32
+    {1UL << 60, 1, "ssve-fp8fma"},   // HWCAP2_SME_SF8FMA
+    {1UL << 61, 1, "ssve-fp8dot4"},  // HWCAP2_SME_SF8DP4
+    {1UL << 62, 1, "ssve-fp8dot2"},  // HWCAP2_SME_SF8DP2
     // AT_HWCAP3
+    {1UL <<  2, 2, "lsfe"},          // HWCAP3_LSFE
     {1UL <<  3, 2, "ls64"},          // HWCAP3_LS64 (FEAT_LS64)
     {0, 0, nullptr}
 };
@@ -714,8 +752,10 @@ FeatureBits get_host_features() {
 const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     static const char *empty[] = { nullptr };
     switch (kind) {
-    case HOST_FEATURE_BASELINE:
-        return empty;
+    case HOST_FEATURE_BASELINE: {
+        static const char *names[] = { "chk", nullptr };
+        return names;
+    }
     case HOST_FEATURE_DETECTABLE: {
         constexpr size_t N = sizeof(hwcap_map) / sizeof(hwcap_map[0]);
         static const auto names = []() {
