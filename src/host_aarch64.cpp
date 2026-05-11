@@ -215,7 +215,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sme-b16b16", "sme-f16f16", "sme-f8f16", "sme-f8f32",
             "sme-fa64", "sme-lutv2", "sme-mop4", "sme-tmop",
             "sme2p1", "sme2p2",
-            "ssve-aes", "ssve-bitperm",
+            "ssve-aes", "ssve-bitperm", "ssve-fexpa",
             "ssve-fp8dot2", "ssve-fp8dot4", "ssve-fp8fma",
 
             nullptr
@@ -336,7 +336,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
             "mops", "mte", "pauth", "predres", "rand", "ras",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
-            "specres2", "specrestrict", "sve-f16f32mm", "sve2p2", "wfxt",
+            "specres2", "specrestrict", "ssve-fexpa",
+            "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
         };
         return names;
@@ -663,6 +664,7 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 42, 0, "sme2p2"},        // HWCAP_SME2P2
     {1UL << 43, 0, "ssve-bitperm"},  // HWCAP_SME_SBITPERM
     {1UL << 44, 0, "ssve-aes"},      // HWCAP_SME_AES
+    {1UL << 45, 0, "ssve-fexpa"},    // HWCAP_SME_SFEXPA
     {1UL << 46, 0, "sme-tmop"},      // HWCAP_SME_STMOP
     {1UL << 47, 0, "sme-mop4"},      // HWCAP_SME_SMOP4
     // AT_HWCAP2
