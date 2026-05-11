@@ -747,6 +747,40 @@ int main() {
                    failures == 0 ? "OK (no non-hw features)" : "FAILED");
         }
 
+        printf("\n  --- host detection HW-only ---\n");
+        {
+            unsigned bad = 0;
+            auto check_list = [&](tp::HostFeatureDetectionKind kind, const char *desc) {
+                for (const char *const *p =
+                        tp::get_host_feature_detection(kind); *p; p++) {
+                    const FeatureEntry *fe = find_feature(*p);
+                    if (!fe) {
+                        printf("  FAIL: %s feature '%s' is not in the feature table\n", desc, *p);
+                        bad++;
+                        continue;
+                    }
+                    if (!fe->is_hw) {
+                        printf("  FAIL: %s feature '%s' is not is_hw=1\n", desc, *p);
+                        bad++;
+                        continue;
+                    }
+                    if (fe->is_featureset) {
+                        printf("  FAIL: %s feature '%s' is a featureset umbrella\n", desc, *p);
+                        bad++;
+                        continue;
+                    }
+                }
+            };
+            check_list(tp::HOST_FEATURE_DETECTABLE, "detectable");
+            check_list(tp::HOST_FEATURE_BASELINE, "baseline");
+            check_list(tp::HOST_FEATURE_UNDETECTABLE, "undetectable");
+            check(bad == 0,
+                  "host detection lists must contain only HW features "
+                  "(is_hw=1, is_featureset=0)");
+            printf("  host detection HW-only: %s\n",
+                   bad == 0 ? "OK" : "FAILED");
+        }
+
         printf("\n  --- HW feature detection coverage ---\n");
         {
             FeatureBits detectable{}, baseline{}, undetectable{};
@@ -755,8 +789,15 @@ int main() {
                 feature_set(&detectable, find_feature(*p)->bit);
 
             for (const char *const *p =
-                    tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++)
-                feature_set(&baseline, find_feature(*p)->bit);
+                    tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++) {
+                const FeatureEntry *fe = find_feature(*p);
+                if (!fe->is_hw)
+                    printf("  FAIL: baseline feature '%s' is not is_hw=1\n", *p);
+                check(fe->is_hw,
+                      (std::string("baseline feature '") + *p +
+                       "' must be is_hw=1").c_str());
+                feature_set(&baseline, fe->bit);
+            }
 
             for (const char *const *p =
                     tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
