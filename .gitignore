@@ -1,6 +1,13 @@
 build/
+build-cov/
 *.o
 *.a
+*.gcda
+*.gcno
+*.profraw
+*.profdata
+coverage.lcov
+coverage.xml
 test_standalone
 
 # Build-time generator binary (requires LLVM to build)
