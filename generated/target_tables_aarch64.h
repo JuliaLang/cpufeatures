@@ -716,7 +716,7 @@ static const FeatureEntry feature_table[] = {
     { "tsv110", "HiSilicon TS-V110 processors", 307, 0, 0, 0, { { 0x0ULL, 0x2000000000001000ULL, 0x0ULL, 0x8000ULL, 0x0ULL } } },
     { "uaops", "Enable Armv8.2-A UAO PState", 128, 1, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "use-experimental-zeroing-pseudos", "Hint to the compiler that the MOVPRFX instruction is merged with destructive operations", 56, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "use-fixed-over-scalable-if-equal-cost", "Prefer fixed width loop vectorization over scalable if the cost-model assigns equal costs", 220, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "use-fixed-over-scalable-if-equal-cost", "Prefer fixed width loop vectorization over scalable if the cost-model assigns equal costs", 220, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "use-postra-scheduler", "Schedule again after register allocation", 125, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "use-reciprocal-square-root", "Use the reciprocal square root approximation", 222, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "v8.1a", "Support ARM v8.1a architecture", 235, 1, 1, 0, { { 0x10000000ULL, 0x20000050000000ULL, 0x40ULL, 0x20080000000ULL, 0x0ULL } } },
@@ -752,10 +752,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 319;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x48e07febfc700affULL, 0xfefffffc000001ffULL, 0xf7fe0390d047afULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x48e07febfc700affULL, 0xfefffffc000001ffULL, 0xf7fe0380d047afULL, 0x0ULL } };
 
 // Codegen-relevant subset of hw_feature_mask (non-privileged features)
-static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x40801f4bf8300a7fULL, 0xfe5ffff40000017aULL, 0xf7fe01100047afULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x40801f4bf8300a7fULL, 0xfe5ffff40000017aULL, 0xf7fe01000047afULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {

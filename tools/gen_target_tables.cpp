@@ -387,6 +387,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "nopl",            // baseline assumption, not CPUID-detectable
         // aarch64:
         "ssbs",            // speculative execution mitigation, not codegen-relevant.
+        // incorrectly categorized as a feature in LLVM 21
+        // fixed in https://github.com/llvm/llvm-project/pull/152156)
+        "use-fixed-over-scalable-if-equal-cost",
         nullptr
     };
     for (const auto &F : Features) {
