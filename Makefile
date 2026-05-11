@@ -39,6 +39,9 @@ ARCH ?= $(shell uname -m)
 ifeq ($(ARCH),arm64)
   override ARCH := aarch64
 endif
+ifeq ($(ARCH),amd64)
+  override ARCH := x86_64
+endif
 ifeq ($(ARCH),i686)
   override ARCH := x86_64
 endif
