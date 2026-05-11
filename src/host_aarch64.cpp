@@ -480,7 +480,7 @@ const std::string &get_host_cpu_name() {
 }
 } // namespace tp
 
-#else  // Linux, probably
+#elif defined(__linux__)
 
 // These were introduced in glibc 2.39
 #ifndef AT_HWCAP3
@@ -677,6 +677,8 @@ const std::string &get_host_cpu_name() {
     return cpu_name;
 }
 } // namespace tp
+#else
+#error "Unrecognized platform"
 #endif // Linux
 
 namespace tp {
