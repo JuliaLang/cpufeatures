@@ -208,7 +208,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             // No runtime probe support available yet.
             "altnzcv", "clrbhb", "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
-            "lor", "ras", "predres", "specres2", "specrestrict",
+            "lor", "mops", "ras", "predres", "specres2", "specrestrict",
 
             nullptr
         };
@@ -322,10 +322,10 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // HW features LLVM knows about for AArch64 that have no
         // corresponding IsProcessorFeaturePresent flag.
         static const char *names[] = {
-            "altnzcv", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
+            "altnzcv", "bti", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
             "dit", "ecv", "faminmax", "flagm", "fp16fml", "fp8dot2",
-            "fp8dot4", "fp8fma", "fpac", "fptoint", "lor", "ls64",
-            "lut", "mte", "pauth", "predres", "rand", "ras",
+            "fp8dot4", "fp8fma", "fpac", "fptoint", "hbc", "lor", "ls64",
+            "lut", "mops", "mte", "pauth", "predres", "rand", "ras",
             "rcpc-immo", "rdm", "sb", "specres2", "specrestrict", "wfxt",
             nullptr
         };
@@ -656,6 +656,7 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 13, 1, "i8mm"},          // HWCAP2_I8MM
     {1UL << 14, 1, "bf16"},          // HWCAP2_BF16
     {1UL << 16, 1, "rand"},          // HWCAP2_RNG
+    {1UL << 17, 1, "bti"},           // HWCAP2_BTI
     {1UL << 18, 1, "mte"},           // HWCAP2_MTE
     {1UL << 19, 1, "ecv"},           // HWCAP2_ECV
     {1UL << 23, 1, "sme"},           // HWCAP2_SME
@@ -664,6 +665,8 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 31, 1, "wfxt"},          // HWCAP2_WFXT
     {1UL << 34, 1, "cssc"},          // HWCAP2_CSSC
     {1UL << 37, 1, "sme2"},          // HWCAP2_SME2
+    {1UL << 43, 1, "mops"},          // HWCAP2_MOPS
+    {1UL << 44, 1, "hbc"},           // HWCAP2_HBC
     {1UL << 49, 1, "lut"},           // HWCAP2_LUT
     {1UL << 50, 1, "faminmax"},      // HWCAP2_FAMINMAX
     {1UL << 51, 1, "fp8"},           // HWCAP2_F8CVT
