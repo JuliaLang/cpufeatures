@@ -297,6 +297,8 @@ static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
     // these are just aliases for "+sve2,+sve-aes" etc.
     Result.push_back("sve2-aes");
     Result.push_back("sve2-bitperm");
+    Result.push_back("sve2-sha3");
+    Result.push_back("sve2-sm4");
     return Result;
 }
 
@@ -385,6 +387,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "nopl",            // baseline assumption, not CPUID-detectable
         // aarch64:
         "ssbs",            // speculative execution mitigation, not codegen-relevant.
+        // incorrectly categorized as a feature in LLVM 21
+        // fixed in https://github.com/llvm/llvm-project/pull/152156)
+        "use-fixed-over-scalable-if-equal-cost",
         nullptr
     };
     for (const auto &F : Features) {

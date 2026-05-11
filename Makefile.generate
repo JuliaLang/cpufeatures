@@ -9,7 +9,7 @@
 # Supported hosts: Linux and macOS, x86-64 and aarch64.
 # The generated headers are committed to the repo. Normal builds don't need this.
 
-LLVM_VER ?= 20.1.8
+LLVM_VER ?= 21.1.8
 
 # Auto-detect host OS and architecture
 HOST_OS   := $(shell uname -s)

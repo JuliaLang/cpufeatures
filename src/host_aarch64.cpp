@@ -66,9 +66,9 @@ const std::string &get_host_cpu_name() {
     case CPUFAMILY_ARM_DONAN:
     case CPUFAMILY_ARM_BRAVA:
         name = "apple-m4"; break;
-    // case CPUFAMILY_ARM_TAHITI:
-    // case CPUFAMILY_ARM_TUPAI:
-    //     name = "apple-a18"; break; // Uncomment once tables are generated from LLVM 21
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_TUPAI:
+        name = "apple-a18"; break;
     // case CPUFAMILY_ARM_HIDRA:
     // case CPUFAMILY_ARM_SOTRA:
     //     name = "apple-m5"; break; // Uncomment once tables are generated from LLVM 22
@@ -203,7 +203,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         static const char *names[] = {
             // Never present on Apple Silicon.
             "sve", "sve-aes", "sve-bitperm",
-            "sve2", "sve2-sha3", "sve2-sm4",
+            "sve2", "sve-sha3", "sve-sm4",
             "mte", "rand", "sm4",
             // No runtime probe support available yet.
             "altnzcv", "clrbhb", "faminmax", "lut",
@@ -215,7 +215,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sme-b16b16", "sme-f16f16", "sme-f8f16", "sme-f8f32",
             "sme-fa64", "sme-lutv2", "sme-mop4", "sme-tmop",
             "sme2p1", "sme2p2",
-            "ssve-aes", "ssve-bitperm",
+            "ssve-aes", "ssve-bitperm", "ssve-fexpa",
             "ssve-fp8dot2", "ssve-fp8dot4", "ssve-fp8fma",
 
             nullptr
@@ -256,8 +256,8 @@ static const PFCapMap pf_cap_map[] = {
     {49, "sve-aes"},        // PF_ARM_SVE_AES_INSTRUCTIONS_AVAILABLE
     {51, "sve-bitperm"},    // PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE
     {54, "sve-b16b16"},     // PF_ARM_SVE_B16B16_INSTRUCTIONS_AVAILABLE
-    {55, "sve2-sha3"},      // PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE
-    {56, "sve2-sm4"},       // PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE
+    {55, "sve-sha3"},       // PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE
+    {56, "sve-sm4"},        // PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE
     {58, "f32mm"},          // PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
     {59, "f64mm"},          // PF_ARM_SVE_F64MM_INSTRUCTIONS_AVAILABLE
     {62, "lse2"},           // PF_ARM_LSE2_AVAILABLE
@@ -336,7 +336,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
             "mops", "mte", "pauth", "predres", "rand", "ras",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
-            "specres2", "specrestrict", "sve-f16f32mm", "sve2p2", "wfxt",
+            "specres2", "specrestrict", "ssve-fexpa",
+            "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
         };
         return names;
@@ -663,6 +664,7 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 42, 0, "sme2p2"},        // HWCAP_SME2P2
     {1UL << 43, 0, "ssve-bitperm"},  // HWCAP_SME_SBITPERM
     {1UL << 44, 0, "ssve-aes"},      // HWCAP_SME_AES
+    {1UL << 45, 0, "ssve-fexpa"},    // HWCAP_SME_SFEXPA
     {1UL << 46, 0, "sme-tmop"},      // HWCAP_SME_STMOP
     {1UL << 47, 0, "sme-mop4"},      // HWCAP_SME_SMOP4
     // AT_HWCAP2
@@ -670,8 +672,8 @@ static const HWCapMap hwcap_map[] = {
     {1UL <<  1, 1, "sve2"},          // HWCAP2_SVE2
     {1UL <<  2, 1, "sve-aes"},       // HWCAP2_SVEAES
     {1UL <<  4, 1, "sve-bitperm"},   // HWCAP2_SVEBITPERM
-    {1UL <<  5, 1, "sve2-sha3"},     // HWCAP2_SVESHA3
-    {1UL <<  6, 1, "sve2-sm4"},      // HWCAP2_SVESM4
+    {1UL <<  5, 1, "sve-sha3"},      // HWCAP2_SVESHA3
+    {1UL <<  6, 1, "sve-sm4"},       // HWCAP2_SVESM4
     {1UL <<  7, 1, "altnzcv"},       // HWCAP2_FLAGM2
     {1UL <<  8, 1, "fptoint"},       // HWCAP2_FRINT
     {1UL << 10, 1, "f32mm"},         // HWCAP2_SVEF32MM
