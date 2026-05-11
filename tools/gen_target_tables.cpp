@@ -159,34 +159,37 @@ static void emitFeatureBits(raw_ostream &OS, const FeatureBitset &Bits, unsigned
 }
 
 static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
-                                    ArrayRef<SubtargetSubTypeKV> CPUs) {
-    // A feature is "hardware" if it appears in some CPU's Implies
-    // (ISA features set by the CPU definition) but NOT only in TuneImplies
-    // (scheduling/tuning hints). This works for all architectures without
-    // needing host CPU detection.
-
-    FeatureBitset ImpliedByAnyCPU;
-    FeatureBitset TuneOnlyBits;
-
-    // Collect all bits that appear in any CPU's Implies
+                                    ArrayRef<SubtargetSubTypeKV> CPUs,
+                                    const FeatureBitset &FeatureSetMask,
+                                    const FeatureBitset &ExtraHWMask) {
+    FeatureBitset HWMask = ExtraHWMask;
+    FeatureBitset TuneImplied;
     for (const auto &CPU : CPUs) {
-        ImpliedByAnyCPU |= CPU.Implies.getAsBitset();
+        HWMask      |= CPU.Implies.getAsBitset();
+        TuneImplied |= CPU.TuneImplies.getAsBitset();
     }
 
-    // Collect all bits that appear ONLY in TuneImplies (never in Implies)
-    for (const auto &CPU : CPUs) {
-        TuneOnlyBits |= CPU.TuneImplies.getAsBitset();
-    }
-
-    // Hardware = implied by some CPU, but not exclusively a tuning feature.
-    // Also include features that are implied by other hardware features
-    // (via the feature implication chain).
-    FeatureBitset HWMask = ImpliedByAnyCPU & ~(TuneOnlyBits & ~ImpliedByAnyCPU);
-
-    // Also add any feature that is implied by a hardware feature
-    for (const auto &F : Features) {
-        if (HWMask.test(F.Value)) {
-            HWMask |= F.Implies.getAsBitset();
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const auto &F : Features) {
+            if (HWMask.test(F.Value)) {
+                // Apply forward closure to HW bits (anything required by a HW
+                // feature is a HW feature)
+                FeatureBitset before = HWMask;
+                HWMask |= F.Implies.getAsBitset();
+                if (HWMask != before) changed = true;
+            } else {
+                if (TuneImplied.test(F.Value)) continue;
+                if (FeatureSetMask.test(F.Value)) continue;
+                // Apply reverse closure to HW bits (anything that requires a HW
+                // feature is a HW feature, except for featureset bits and any
+                // 'features' implied via tuning)
+                if ((F.Implies.getAsBitset() & HWMask).any()) {
+                    HWMask.set(F.Value);
+                    changed = true;
+                }
+            }
         }
     }
 
@@ -209,6 +212,14 @@ static std::vector<StringRef> getPrivilegedFeatureNamesAArch64() {
     return {
         // Exception levels / virtualization (Arm ARM D5)
         "el2vmsa", "el3", "sel2", "vh", "hcx", "nv", "mec", "rme",
+        // Non-maskable interrupts (EL2/EL3 — FEAT_NMI)
+        "nmi",
+        // 128-bit page-table descriptors and sysreg ISA (Arm ARM D8 — FEAT_D128)
+        "d128",
+        // Instrumentation extension; implies trace/ETE, EL1+ only (FEAT_ITE)
+        "ite",
+        // RAS v2: system-register-only, EL1+ (FEAT_RASv2)
+        "rasv2",
         // EL2 trap controls (Arm ARM D13 — FEAT_FGT)
         "fgt",
         // EL1+ system registers / PSTATE bits / kernel ABI
@@ -281,6 +292,11 @@ static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
         // ArchFeature is "+v8.1a" — strip leading "+".
         Result.push_back(AI->ArchFeature.drop_front());
     }
+    // alias for "+aes,+sha2"
+    Result.push_back("crypto");
+    // these are just aliases for "+sve2,+sve-aes" etc.
+    Result.push_back("sve2-aes");
+    Result.push_back("sve2-bitperm");
     return Result;
 }
 
@@ -300,7 +316,7 @@ static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
     };
 }
 
-static FeatureBitset computeFeatureCollectionMask(
+static FeatureBitset computeFeatureFeatureSetMask(
         StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
     std::vector<StringRef> Names;
     if (Arch == "aarch64")
@@ -333,8 +349,18 @@ static void emitFeatureTable(raw_ostream &OS,
                               ArrayRef<SubtargetFeatureKV> Features,
                               ArrayRef<SubtargetSubTypeKV> CPUs,
                               unsigned NumWords) {
-    FeatureBitset HWMask = computeHWMask(Features, CPUs);
-    FeatureBitset CollectionMask = computeFeatureCollectionMask(Arch, Features);
+    FeatureBitset FeatureSetMask = computeFeatureFeatureSetMask(Arch, Features);
+
+    // Whitelist any HW feature bits that are not covered by the `computeHWMask` heuristic
+    FeatureBitset ExtraHWMask;
+    if (Arch == "aarch64") {
+        for (const auto &F : Features) {
+            if (StringRef(F.Key) == "chk")
+                ExtraHWMask.set(F.Value);
+        }
+    }
+
+    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, ExtraHWMask);
     FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
 
     OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";
@@ -375,7 +401,7 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "static const FeatureEntry feature_table[] = {\n";
     for (const auto &F : Features) {
         bool IsHW = HWMask.test(F.Value);
-        bool IsCollection = CollectionMask.test(F.Value);
+        bool IsCollection = FeatureSetMask.test(F.Value);
         bool IsPrivileged = PrivilegedMask.test(F.Value);
         OS << "    { \"" << F.Key << "\", \"";
         StringRef Desc(F.Desc);

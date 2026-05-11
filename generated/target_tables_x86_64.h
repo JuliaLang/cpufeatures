@@ -323,7 +323,7 @@ static const FeatureEntry feature_table[] = {
     { "amx-tile", "Support AMX-TILE instructions", 10, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "amx-transpose", "Support AMX amx-transpose instructions", 11, 1, 0, 0, { { 0x400ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx", "Enable AVX instructions", 12, 1, 0, 0, { { 0x0ULL, 0x20000000000ULL, 0x0ULL, 0x0ULL } } },
-    { "avx10.1-256", "Support AVX10.1 up to 256-bit instruction", 14, 0, 0, 0, { { 0x202000043000000ULL, 0x960000000000000ULL, 0x0ULL, 0x0ULL } } },
+    { "avx10.1-256", "Support AVX10.1 up to 256-bit instruction", 14, 1, 0, 0, { { 0x202000043000000ULL, 0x960000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.1-512", "Support AVX10.1 up to 512-bit instruction", 15, 1, 0, 0, { { 0x200000004000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.2-256", "Support AVX10.2 up to 256-bit instruction", 16, 1, 0, 0, { { 0x4000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "avx10.2-512", "Support AVX10.2 up to 512-bit instruction", 17, 1, 0, 0, { { 0x18000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -506,10 +506,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 196;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x9e77efffffffbfffULL, 0xfff6cbffa0f7fdffULL, 0x7fULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x9e77efffffffffffULL, 0xfff6cbffa0f7fdffULL, 0x7fULL, 0x0ULL } };
 
 // Codegen-relevant subset of hw_feature_mask (non-privileged features)
-static const FeatureBits llvm_feature_mask = { { 0x9a37efffffffbfffULL, 0xdff6cbffa0f7f5ffULL, 0x5fULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0x9a37efffffffffffULL, 0xdff6cbffa0f7f5ffULL, 0x5fULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {
