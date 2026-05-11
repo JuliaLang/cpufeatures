@@ -150,11 +150,7 @@ static bool cap_test(const uint8_t *caps, size_t caps_len, unsigned bit) {
 
 FeatureBits get_host_features() {
     FeatureBits features{};
-
-    const auto &cpu = get_host_cpu_name();
-    const CPUEntry *entry = find_cpu(cpu.c_str());
-    if (entry)
-        features = entry->features;
+    apply_host_baseline(&features);
 
     // Read the full caps bitbuffer in one sysctlbyname call.
     // Query size first — Apple may extend the buffer in future OS versions.
@@ -287,12 +283,10 @@ static const PFCapMap pf_cap_map[] = {
 
 FeatureBits get_host_features() {
     FeatureBits features{};
+    apply_host_baseline(&features);
+
     FeatureBits to_enable{};
     FeatureBits to_disable{};
-
-    // Windows ABI mandates neon + fp-armv8
-    feature_set(&to_enable, find_feature("neon")->bit);
-    feature_set(&to_enable, find_feature("fp-armv8")->bit);
 
     for (const auto *m = pf_cap_map; m->llvm_name; m++) {
         const FeatureEntry *fe = find_feature(m->llvm_name);
@@ -720,12 +714,7 @@ static const HWCapMap hwcap_map[] = {
 
 FeatureBits get_host_features() {
     FeatureBits features{};
-
-    // Start from the CPU table — it has the complete LLVM feature set.
-    const auto &cpu = get_host_cpu_name();
-    const CPUEntry *entry = find_cpu(cpu.c_str());
-    if (entry)
-        features = entry->features;
+    apply_host_baseline(&features);
 
     // The kernel may disable features (e.g. nosve boot param, MTE not
     // enabled). Use hwcap to detect what the kernel actually exposes,

@@ -224,6 +224,9 @@ void apply_feature_delta(FeatureBits *features,
                          FeatureBits to_enable,
                          FeatureBits to_disable);
 
+// Enable all HOST_FEATURE_BASELINE bits in `features`.
+void apply_host_baseline(FeatureBits *features);
+
 } // namespace tp
 
 #endif // TARGET_PARSING_H

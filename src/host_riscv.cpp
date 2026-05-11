@@ -158,6 +158,8 @@ FeatureBits get_host_features() {
     // "i" comes from hwprobe — so features starts empty and any extension
     // not enumerated by hwprobe ends up in to_disable.
     FeatureBits features{};
+    apply_host_baseline(&features);
+
     FeatureBits to_enable{};
     FeatureBits to_disable{};
 
