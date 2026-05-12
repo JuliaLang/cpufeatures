@@ -1,0 +1,49 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Codecov OIDC upload needs id-token: write so codecov-action@v5 can
+# mint a short-lived token (no CODECOV_TOKEN secret required).
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Native Linux x86_64 — covers x86 host detection + cross-arch + parser.
+  coverage-linux-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gcovr
+        run: sudo apt-get update && sudo apt-get install -y gcovr
+      - name: Build and run with coverage
+        run: make coverage-lcov
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.lcov
+          flags: linux-x86_64
+          fail_ci_if_error: false
+          use_oidc: true
+
+  # Native Linux aarch64 — covers aarch64 host detection paths that
+  # x86_64 misses (host_aarch64.cpp / aarch64 table).
+  coverage-linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install gcovr
+        run: sudo apt-get update && sudo apt-get install -y gcovr
+      - name: Build and run with coverage
+        run: make coverage-lcov ARCH=aarch64
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.lcov
+          flags: linux-aarch64
+          fail_ci_if_error: false
+          use_oidc: true

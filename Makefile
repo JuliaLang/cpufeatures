@@ -123,6 +123,38 @@ test: $(BUILDDIR)/test_standalone$(EXE)
 	$(BUILDDIR)/test_standalone$(EXE)
 
 # ============================================================================
+# Coverage build & report (NO LLVM dependency)
+#
+# Builds with gcov-style instrumentation (--coverage works for both gcc
+# and clang) into a separate build-cov/ tree, runs the test, and asks
+# gcovr for a summary. Install gcovr with: pip install gcovr.
+# `make coverage-lcov` additionally writes coverage.lcov for upload to
+# services like Codecov.
+# ============================================================================
+
+COV_BUILDDIR := build-cov
+COV_CXXFLAGS := -std=c++17 -O0 -g -Wall -Wextra -fno-exceptions -fno-rtti --coverage
+# Don't count the test driver itself as covered code — we want coverage
+# of the library, not of the test.
+GCOVR_FILTERS := --filter '^src/' --filter '^include/'
+
+.PHONY: coverage coverage-lcov
+coverage:
+	@$(MAKE) BUILDDIR=$(COV_BUILDDIR) CXXFLAGS='$(COV_CXXFLAGS)' test
+	@echo ""
+	@echo "=== Coverage summary ==="
+	@if command -v gcovr >/dev/null 2>&1; then \
+		gcovr --root . --object-directory $(COV_BUILDDIR) $(GCOVR_FILTERS) --print-summary; \
+	else \
+		echo "gcovr not installed. Install: pip install gcovr"; \
+		echo "Raw .gcda/.gcno files are under $(COV_BUILDDIR)/"; \
+	fi
+
+coverage-lcov: coverage
+	gcovr --root . --object-directory $(COV_BUILDDIR) $(GCOVR_FILTERS) --lcov coverage.lcov
+	@echo "Wrote coverage.lcov"
+
+# ============================================================================
 # Directories & clean
 # ============================================================================
 
@@ -130,7 +162,7 @@ $(BUILDDIR):
 	mkdir -p $@
 
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR) $(COV_BUILDDIR) coverage.lcov coverage.xml
 
 info:
 	@echo "Architecture: $(ARCH)"

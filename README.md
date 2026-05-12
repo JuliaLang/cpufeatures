@@ -16,6 +16,28 @@ make -j
 make test
 ```
 
+### Code coverage
+
+`make coverage` rebuilds the library and the test under gcov-style
+instrumentation (`--coverage`) into a separate `build-cov/` tree, runs
+the test, and (if [`gcovr`](https://gcovr.com/) is installed) prints a
+per-file summary:
+
+```
+make coverage
+```
+
+`make coverage-lcov` additionally writes an LCOV report to
+`coverage.lcov` for upload to services like
+[Codecov](https://about.codecov.io/). The CI runs this on both Linux
+x86_64 and Linux aarch64 and uploads the merged result.
+
+Install `gcovr` with:
+
+```
+pip install gcovr
+```
+
 ### Updating feature tables
 
 `Makefile.generate` downloads a build of LLVM from LLVMs own releases and regenerates the tables, based on host platform (supported systems: Linux and macOS, with x86-64 and aarch64 architectures).
