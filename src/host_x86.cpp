@@ -513,19 +513,13 @@ static const char *const baseline_features[] = {
     nullptr
 };
 
-FeatureBits get_host_features() {
-    static bool cached_valid = false;
-    static FeatureBits cached;
-    if (cached_valid) return cached;
-
+FeatureBits detect_host_features() {
     FeatureBits features{};
     apply_host_baseline(&features);
 
 #if defined(__i386__) || defined(_M_IX86)
     // On 32-bit, just return baseline features.
     // Full detection is not worth the complexity on this legacy platform.
-    cached = features;
-    cached_valid = true;
     return features;
 #endif
 
@@ -544,8 +538,6 @@ FeatureBits get_host_features() {
     }
     features = all_cpu_features;
 
-    cached = features;
-    cached_valid = true;
     return features;
 }
 

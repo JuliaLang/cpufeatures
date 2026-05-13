@@ -194,6 +194,7 @@ TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
 
 const std::string &get_host_cpu_name();
 FeatureBits get_host_features();
+FeatureBits detect_host_features();
 
 enum HostFeatureDetectionKind {
     // Features the host can probe at runtime.

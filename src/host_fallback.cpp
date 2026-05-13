@@ -11,7 +11,7 @@ const std::string &get_host_cpu_name() {
     return name;
 }
 
-FeatureBits get_host_features() {
+FeatureBits detect_host_features() {
     return FeatureBits{};
 }
 

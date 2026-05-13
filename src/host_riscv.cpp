@@ -153,11 +153,7 @@ const std::string &get_host_cpu_name() {
     return cpu_name;
 }
 
-FeatureBits get_host_features() {
-    static bool cached_valid = false;
-    static FeatureBits cached;
-    if (cached_valid) return cached;
-
+FeatureBits detect_host_features() {
     // RISC-V has no CPU-table baseline at the LLVM-feature level — even
     // "i" comes from hwprobe — so features starts empty and any extension
     // not enumerated by hwprobe ends up in to_disable.
@@ -174,11 +170,8 @@ FeatureBits get_host_features() {
         {RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF, 0}
     };
 
-    if (do_hwprobe(query, 3) != 0) {
-        cached = features;
-        cached_valid = true;
+    if (do_hwprobe(query, 3) != 0)
         return features;
-    }
 
     unsigned long long base = query[0].value;
     unsigned long long ext = query[1].value;
@@ -207,9 +200,6 @@ FeatureBits get_host_features() {
 #endif
 
     apply_feature_delta(&features, to_enable, to_disable);
-
-    cached = features;
-    cached_valid = true;
     return features;
 }
 

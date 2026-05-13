@@ -495,4 +495,9 @@ void apply_host_baseline(FeatureBits *features) {
     }
 }
 
+FeatureBits get_host_features() {
+    static const FeatureBits cached = detect_host_features();
+    return cached;
+}
+
 } // namespace tp
