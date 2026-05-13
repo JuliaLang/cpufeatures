@@ -513,36 +513,15 @@ static const char *const baseline_features[] = {
     nullptr
 };
 
-FeatureBits get_host_features() {
-    static bool cached_valid = false;
-    static FeatureBits cached;
-    if (cached_valid) return cached;
-
+FeatureBits detect_host_features() {
     FeatureBits features{};
-
-    auto apply_baseline = [&](FeatureBits &fb) {
-        for (const char *const *p = baseline_features; *p; p++)
-            feature_set(&fb, find_feature(*p)->bit);
-    };
-    apply_baseline(features);
+    apply_host_baseline(&features);
 
 #if defined(__i386__) || defined(_M_IX86)
     // On 32-bit, just return baseline features.
     // Full detection is not worth the complexity on this legacy platform.
-    cached = features;
-    cached_valid = true;
     return features;
 #endif
-
-    // Start with the detected CPU's features from the table.
-    // This gives us non-CPUID features like nopl, ermsb, etc.
-    const auto &cpu = get_host_cpu_name();
-    const CPUEntry *entry = _find_cpu_exact(cpu.c_str());
-    if (entry)
-        features = entry->features;
-
-    // Re-apply baseline (table may not include all of them)
-    apply_baseline(features);
 
     // Detect CPUID/XCR0-derived features (on all cores, if necessary)
     FeatureBits all_cpu_features = compute_features_on_current_core(features);
@@ -559,8 +538,6 @@ FeatureBits get_host_features() {
     }
     features = all_cpu_features;
 
-    cached = features;
-    cached_valid = true;
     return features;
 }
 

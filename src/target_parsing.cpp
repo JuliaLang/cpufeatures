@@ -488,4 +488,16 @@ void apply_feature_delta(FeatureBits *features,
     feature_andnot(features, features, &to_disable);
 }
 
+void apply_host_baseline(FeatureBits *features) {
+    for (const char *const *p = get_host_feature_detection(HOST_FEATURE_BASELINE); *p; p++) {
+        const FeatureEntry *fe = find_feature(*p);
+        if (fe) feature_set(features, fe->bit);
+    }
+}
+
+FeatureBits get_host_features() {
+    static const FeatureBits cached = detect_host_features();
+    return cached;
+}
+
 } // namespace tp

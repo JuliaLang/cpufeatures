@@ -194,6 +194,7 @@ TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
 
 const std::string &get_host_cpu_name();
 FeatureBits get_host_features();
+FeatureBits detect_host_features();
 
 enum HostFeatureDetectionKind {
     // Features the host can probe at runtime.
@@ -223,6 +224,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind);
 void apply_feature_delta(FeatureBits *features,
                          FeatureBits to_enable,
                          FeatureBits to_disable);
+
+// Enable all HOST_FEATURE_BASELINE bits in `features`.
+void apply_host_baseline(FeatureBits *features);
 
 } // namespace tp
 
