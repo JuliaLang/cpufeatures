@@ -228,6 +228,10 @@ void apply_feature_delta(FeatureBits *features,
 // Enable all HOST_FEATURE_BASELINE bits in `features`.
 void apply_host_baseline(FeatureBits *features);
 
+// Copy uarch features (e.g. +v8.4a) from the detected host CPU's table
+// entry into `features`, after verifying any required features are present.
+void apply_host_uarch(FeatureBits *features);
+
 } // namespace tp
 
 #endif // TARGET_PARSING_H
