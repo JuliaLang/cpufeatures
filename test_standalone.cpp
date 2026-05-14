@@ -160,6 +160,52 @@ int main() {
         printf("  %s\n", any_missing ? "FAILED" : "OK");
     }
 
+    // Per-platform baseline CPU: any host on this platform/arch is expected
+    // to expose at least these features at runtime detection.
+#if defined(__x86_64__) || defined(_M_X64)
+    const char *baseline_cpu = "haswell";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  #if defined(__APPLE__)
+    const char *baseline_cpu = "apple-m1";
+  #else
+    const char *baseline_cpu = "cortex-a57";
+  #endif
+#elif defined(__riscv) && __riscv_xlen == 64
+    const char *baseline_cpu = "sifive-u74";
+#else
+    const char *baseline_cpu = nullptr;
+#endif
+    printf("\n--- Detected features cover baseline CPU ---\n");
+    {
+        if (!baseline_cpu || !find_cpu(baseline_cpu)) {
+            printf("  SKIP (no baseline for this platform)\n");
+        } else {
+            auto sysimg_specs = tp::resolve_targets_for_llvm(baseline_cpu);
+            auto host_specs = tp::resolve_targets_for_llvm("native");
+            check(!host_specs.empty(), "native should produce at least 1 spec");
+            if (!host_specs.empty()) {
+                auto match = tp::match_targets(sysimg_specs, host_specs[0]);
+                check(match.best_idx == 0,
+                      (std::string("detected host should match baseline CPU '") +
+                       baseline_cpu + "' (got idx=" + std::to_string(match.best_idx) + ")").c_str());
+                if (match.best_idx == 0) {
+                    printf("  OK (baseline=%s)\n", baseline_cpu);
+                } else {
+                    FeatureBits missing;
+                    feature_and_out(&missing,
+                                    &sysimg_specs[0].en_features,
+                                    &host_specs[0].dis_features);
+                    printf("    features in %s but missing from host detection:\n",
+                           baseline_cpu);
+                    for (unsigned i = 0; i < num_features; i++) {
+                        if (feature_test(&missing, feature_table[i].bit))
+                            printf("      %s\n", feature_table[i].name);
+                    }
+                }
+            }
+        }
+    }
+
     // === 2. Sysimage things ===
 
     // Parse-only Julia CI tests — host-arch-independent. These run the

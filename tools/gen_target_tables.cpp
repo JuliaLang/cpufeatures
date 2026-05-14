@@ -161,6 +161,7 @@ static void emitFeatureBits(raw_ostream &OS, const FeatureBitset &Bits, unsigned
 static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
                                     ArrayRef<SubtargetSubTypeKV> CPUs,
                                     const FeatureBitset &FeatureSetMask,
+                                    const FeatureBitset &UArchMask,
                                     const FeatureBitset &ExtraHWMask) {
     FeatureBitset HWMask = ExtraHWMask;
     FeatureBitset TuneImplied;
@@ -182,9 +183,10 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
             } else {
                 if (TuneImplied.test(F.Value)) continue;
                 if (FeatureSetMask.test(F.Value)) continue;
+                if (UArchMask.test(F.Value)) continue;
                 // Apply reverse closure to HW bits (anything that requires a HW
-                // feature is a HW feature, except for featureset bits and any
-                // 'features' implied via tuning)
+                // feature is a HW feature, except for featureset/uarch bits and
+                // any 'features' implied via tuning)
                 if ((F.Implies.getAsBitset() & HWMask).any()) {
                     HWMask.set(F.Value);
                     changed = true;
@@ -192,6 +194,9 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
             }
         }
     }
+
+    // Effectively tuning flags
+    HWMask &= ~UArchMask;
 
     return HWMask;
 }
@@ -287,18 +292,31 @@ static FeatureBitset computePrivilegedMask(
 // For a 'featureset' bit, all HW / codegen support is gated by other bits.
 
 static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
-    std::vector<StringRef> Result;
-    for (const llvm::AArch64::ArchInfo *AI : llvm::AArch64::ArchInfos) {
-        // ArchFeature is "+v8.1a" — strip leading "+".
-        Result.push_back(AI->ArchFeature.drop_front());
-    }
     // alias for "+aes,+sha2"
-    Result.push_back("crypto");
+    std::vector<StringRef> Result = { "crypto" };
     // these are just aliases for "+sve2,+sve-aes" etc.
     Result.push_back("sve2-aes");
     Result.push_back("sve2-bitperm");
     Result.push_back("sve2-sha3");
     Result.push_back("sve2-sm4");
+    return Result;
+}
+
+// Architecture-level "uarch" features (such as v8.4a).
+//
+// These are similar to featuresets, but they differ in two respects:
+//   1. They are not exactly equivalent to their implied features since
+//      they include optional features.
+//   2. They effectively act as a tuning flag for codegen.
+//
+// We report these in LLVM feature strings, but image matching does not
+// require that they are actually present (they are treated as tuning bits).
+static std::vector<StringRef> getUArchFeatureNamesAArch64() {
+    std::vector<StringRef> Result;
+    for (const llvm::AArch64::ArchInfo *AI : llvm::AArch64::ArchInfos) {
+        // ArchFeature is "+v8.1a" — strip leading "+".
+        Result.push_back(AI->ArchFeature.drop_front());
+    }
     return Result;
 }
 
@@ -318,15 +336,9 @@ static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
     };
 }
 
-static FeatureBitset computeFeatureFeatureSetMask(
-        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
-    std::vector<StringRef> Names;
-    if (Arch == "aarch64")
-        Names = getFeatureCollectionNamesAArch64();
-    else if (Arch == "riscv64")
-        Names = getFeatureCollectionNamesRISCV();
-    // x86_64 and fallback: no collection features.
-
+static FeatureBitset computeMaskFromNames(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features,
+        ArrayRef<StringRef> Names, const char *Kind) {
     FeatureBitset Mask;
     for (StringRef Name : Names) {
         bool Found = false;
@@ -338,12 +350,32 @@ static FeatureBitset computeFeatureFeatureSetMask(
             }
         }
         if (!Found) {
-            errs() << "error: feature collection '" << Name
+            errs() << "error: " << Kind << " '" << Name
                    << "' is not in the LLVM feature table for " << Arch << "\n";
             std::abort();
         }
     }
     return Mask;
+}
+
+static FeatureBitset computeFeatureFeatureSetMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "aarch64")
+        Names = getFeatureCollectionNamesAArch64();
+    else if (Arch == "riscv64")
+        Names = getFeatureCollectionNamesRISCV();
+    // x86_64 and fallback: no collection features.
+    return computeMaskFromNames(Arch, Features, Names, "feature collection");
+}
+
+static FeatureBitset computeUArchMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "aarch64")
+        Names = getUArchFeatureNamesAArch64();
+    // x86_64, riscv64, fallback: no uarch features yet.
+    return computeMaskFromNames(Arch, Features, Names, "uarch feature");
 }
 
 static void emitFeatureTable(raw_ostream &OS,
@@ -352,6 +384,7 @@ static void emitFeatureTable(raw_ostream &OS,
                               ArrayRef<SubtargetSubTypeKV> CPUs,
                               unsigned NumWords) {
     FeatureBitset FeatureSetMask = computeFeatureFeatureSetMask(Arch, Features);
+    FeatureBitset UArchMask = computeUArchMask(Arch, Features);
 
     // Whitelist any HW feature bits that are not covered by the `computeHWMask` heuristic
     FeatureBitset ExtraHWMask;
@@ -362,17 +395,19 @@ static void emitFeatureTable(raw_ostream &OS,
         }
     }
 
-    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, ExtraHWMask);
+    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask,
+                                          UArchMask, ExtraHWMask);
     FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
 
     OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";
-    OS << "// is_privileged, implied features.\n";
+    OS << "// is_uarch, is_privileged, implied features.\n";
     OS << "typedef struct {\n";
     OS << "    const char *name;\n";
     OS << "    const char *desc;\n";
     OS << "    unsigned bit;                // feature bit index\n";
     OS << "    unsigned char is_hw;         // 1 = hardware feature, 0 = tuning/mode hint\n";
     OS << "    unsigned char is_featureset; // 1 = architecture-level umbrella (v8.1a, RISC-V B)\n";
+    OS << "    unsigned char is_uarch;      // 1 = architecture-level uarch hint (v8.1a, v9.2a)\n";
     OS << "    unsigned char is_privileged; // 1 = EL2/EL3/ring-0 only, no user-space codegen\n";
     OS << "    FeatureBits implies;         // transitively implied features\n";
     OS << "} FeatureEntry;\n\n";
@@ -408,6 +443,7 @@ static void emitFeatureTable(raw_ostream &OS,
     for (const auto &F : Features) {
         bool IsHW = HWMask.test(F.Value);
         bool IsCollection = FeatureSetMask.test(F.Value);
+        bool IsUArch = UArchMask.test(F.Value);
         bool IsPrivileged = PrivilegedMask.test(F.Value);
         OS << "    { \"" << F.Key << "\", \"";
         StringRef Desc(F.Desc);
@@ -419,6 +455,7 @@ static void emitFeatureTable(raw_ostream &OS,
         OS << "\", " << F.Value
            << ", " << (IsHW ? "1" : "0")
            << ", " << (IsCollection ? "1" : "0")
+           << ", " << (IsUArch ? "1" : "0")
            << ", " << (IsPrivileged ? "1" : "0")
            << ", ";
         emitFeatureBits(OS, F.Implies.getAsBitset(), NumWords);
@@ -434,12 +471,18 @@ static void emitFeatureTable(raw_ostream &OS,
     emitFeatureBits(OS, HWMask, NumWords);
     OS << ";\n\n";
 
-    // Emit precomputed LLVM feature mask
-    FeatureBitset LLVMMask = HWMask;
-    LLVMMask &= ~PrivilegedMask;
-    OS << "// Codegen-relevant subset of hw_feature_mask (non-privileged features)\n";
+    // Emit precomputed LLVM feature mask: HW (non-privileged) + uarch hints
+    FeatureBitset LLVMMask = (HWMask & ~PrivilegedMask) | UArchMask;
+    OS << "// Codegen-relevant bits: HW features + uarch hints, non-privileged.\n";
     OS << "static const FeatureBits llvm_feature_mask = ";
     emitFeatureBits(OS, LLVMMask, NumWords);
+    OS << ";\n\n";
+
+    // Emit precomputed uarch feature mask
+    OS << "// Mask of architecture-level uarch features (e.g. v8.4a). Included\n";
+    OS << "// in the LLVM feature string but ignored for target matching.\n";
+    OS << "static const FeatureBits uarch_feature_mask = ";
+    emitFeatureBits(OS, UArchMask, NumWords);
     OS << ";\n\n";
 }
 

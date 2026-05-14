@@ -136,7 +136,7 @@ COV_BUILDDIR := build-cov
 COV_CXXFLAGS := -std=c++17 -O0 -g -Wall -Wextra -fno-exceptions -fno-rtti --coverage
 # Don't count the test driver itself as covered code — we want coverage
 # of the library, not of the test.
-GCOVR_FILTERS := --filter '^src/' --filter '^include/'
+GCOVR_FILTERS := --filter '^src/' --filter '^include/' --exclude 'test_standalone\.cpp'
 
 .PHONY: coverage coverage-lcov
 coverage:
