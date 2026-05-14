@@ -441,9 +441,13 @@ TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
     int best_feat_count = 0;
 
     for (int i = 0; i < static_cast<int>(targets.size()); i++) {
-        // Check: target must not enable features the host has disabled
+        // Check: target must not enable features the host has disabled.
         FeatureBits conflict;
         feature_and_out(&conflict, &targets[i].en_features, &host.dis_features);
+
+        // Ignore uarch bits (e.g. +v8.4a) - effectively tuning hints
+        feature_andnot(&conflict, &conflict, &uarch_feature_mask);
+
         if (feature_any(&conflict))
             continue;
 

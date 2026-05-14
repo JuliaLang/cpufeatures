@@ -30,6 +30,7 @@ typedef struct {
     unsigned bit;
     unsigned char is_hw;
     unsigned char is_featureset;
+    unsigned char is_uarch;
     unsigned char is_privileged;
     FeatureBits implies;
 } FeatureEntry;
@@ -41,7 +42,7 @@ typedef struct {
     FeatureBits features;
 } CPUEntry;
 
-static const FeatureEntry feature_table[] = {{nullptr, nullptr, 0, 0, 0, 0, {{0}}}};
+static const FeatureEntry feature_table[] = {{nullptr, nullptr, 0, 0, 0, 0, 0, {{0}}}};
 static const CPUEntry cpu_table[] = {{nullptr, {{0}}, {{0}}, {{0}}}};
 
 static inline const FeatureEntry *find_feature(const char *) { return nullptr; }
@@ -51,5 +52,6 @@ static inline void _expand_entailed_disable_bits(FeatureBits *) {}
 
 static const FeatureBits hw_feature_mask = {{0}};
 static const FeatureBits llvm_feature_mask = {{0}};
+static const FeatureBits uarch_feature_mask = {{0}};
 
 #endif // TARGET_TABLES_FALLBACK_H
