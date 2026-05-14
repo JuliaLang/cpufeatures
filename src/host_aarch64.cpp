@@ -94,7 +94,7 @@ const std::string &get_host_cpu_name() {
 struct CapBitMap { unsigned cap_bit; const char *llvm_name; };
 static const CapBitMap cap_bit_map[] = {
     { 0,  "flagm"},        // CAP_BIT_FEAT_FlagM
-    // { 1,  "flagm2"},    // CAP_BIT_FEAT_FlagM2 — no separate LLVM feature
+    { 1,  "altnzcv"},      // CAP_BIT_FEAT_FlagM2
     { 2,  "fp16fml"},      // CAP_BIT_FEAT_FHM
     { 3,  "dotprod"},      // CAP_BIT_FEAT_DotProd
     { 4,  "sha3"},         // CAP_BIT_FEAT_SHA3
@@ -105,7 +105,7 @@ static const CapBitMap cap_bit_map[] = {
     // { 9, "sha1"},       // CAP_BIT_FEAT_SHA1 — no separate LLVM feature (part of sha2)
     {10,  "aes"},          // CAP_BIT_FEAT_AES
     // {11, "pmull"},      // CAP_BIT_FEAT_PMULL — part of AES extension
-    // {12, "specres"},    // CAP_BIT_FEAT_SPECRES — not codegen-relevant
+    {12,  "predres"},      // CAP_BIT_FEAT_SPECRES
     {13,  "sb"},           // CAP_BIT_FEAT_SB
     {14,  "fptoint"},      // CAP_BIT_FEAT_FRINTTS
     {15,  "rcpc"},         // CAP_BIT_FEAT_LRCPC
@@ -180,7 +180,11 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     static const char *empty[] = { nullptr };
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
-        static const char *names[] = { "fp-armv8", "chk", nullptr };
+        static const char *names[] = {
+            "fp-armv8", "chk",
+            "lor", "ras", "specrestrict",
+            nullptr
+        };
         return names;
     }
     case HOST_FEATURE_DETECTABLE: {
@@ -202,9 +206,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sve2", "sve-sha3", "sve-sm4",
             "mte", "rand", "sm4",
             // No runtime probe support available yet.
-            "altnzcv", "clrbhb", "faminmax", "lut",
+            "clrbhb", "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
-            "lor", "mops", "ras", "predres", "specres2", "specrestrict",
+            "mops", "specres2",
             "f32mm", "f64mm", "f8f16mm", "f8f32mm",
             "fprcvt", "gcs", "lse128", "lsfe", "rcpc3",
             "sve-b16b16", "sve-f16f32mm", "sve2p1", "sve2p2",
