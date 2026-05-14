@@ -18,7 +18,7 @@ bool lookup_cpu(const char *name, CrossFeatureBits &out) {
     std::memset(&out, 0, sizeof(out));
     out.num_words = TARGET_FEATURE_WORDS;
     for (int i = 0; i < TARGET_FEATURE_WORDS; i++)
-        out.bits[i] = c->features.bits[i] & hw_feature_mask.bits[i];
+        out.bits[i] = c->features.bits[i] & llvm_feature_mask.bits[i];
     return true;
 }
 
