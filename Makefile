@@ -15,6 +15,7 @@ CC ?= gcc
 AR ?= ar
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -fno-exceptions -fno-rtti
 CFLAGS ?= -O2 -Wall -Wextra
+DEPFLAGS ?= -MMD -MP
 
 TARGET_OS := $(shell $(CXX) -dumpmachine 2>/dev/null)
 ifneq (,$(findstring mingw,$(TARGET_OS))$(findstring cygwin,$(TARGET_OS)))
@@ -89,25 +90,8 @@ lib: $(STATIC_LIB)
 # Library (NO LLVM dependency)
 # ============================================================================
 
-# Host-specific files depend on the host table
-$(BUILDDIR)/target_parsing.o: $(SRCDIR)/target_parsing.cpp $(HOST_TABLE) $(INCDIR)/target_parsing.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
-
-$(BUILDDIR)/host_%.o: $(SRCDIR)/host_%.cpp $(HOST_TABLE) $(INCDIR)/target_parsing.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
-
-# Per-arch table files each depend on their own generated header
-$(BUILDDIR)/tables_x86_64.o: $(SRCDIR)/tables_x86_64.cpp $(GENDIR)/target_tables_x86_64.h $(INCDIR)/cross_arch.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
-
-$(BUILDDIR)/tables_aarch64.o: $(SRCDIR)/tables_aarch64.cpp $(GENDIR)/target_tables_aarch64.h $(INCDIR)/cross_arch.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
-
-$(BUILDDIR)/tables_riscv64.o: $(SRCDIR)/tables_riscv64.cpp $(GENDIR)/target_tables_riscv64.h $(INCDIR)/cross_arch.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
-
-$(BUILDDIR)/cross_arch.o: $(SRCDIR)/cross_arch.cpp $(INCDIR)/cross_arch.h | $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
+$(BUILDDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDDIR)
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -I$(INCDIR) -I$(GENDIR) -c -o $@ $<
 
 $(STATIC_LIB): $(LIB_OBJS)
 	$(AR) rcs $@ $^
@@ -116,8 +100,8 @@ $(STATIC_LIB): $(LIB_OBJS)
 # Tests (NO LLVM dependency)
 # ============================================================================
 
-$(BUILDDIR)/test_standalone$(EXE): test_standalone.cpp $(STATIC_LIB) $(HOST_TABLE) $(INCDIR)/cross_arch.h
-	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -o $@ $< -L$(BUILDDIR) -ltarget_parsing $(TEST_LDFLAGS)
+$(BUILDDIR)/test_standalone$(EXE): test_standalone.cpp $(STATIC_LIB) | $(BUILDDIR)
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -I$(INCDIR) -I$(GENDIR) -o $@ $< -L$(BUILDDIR) -ltarget_parsing $(TEST_LDFLAGS)
 
 test: $(BUILDDIR)/test_standalone$(EXE)
 	$(BUILDDIR)/test_standalone$(EXE)
@@ -168,3 +152,6 @@ info:
 	@echo "Architecture: $(ARCH)"
 	@echo "Host table:   $(HOST_TABLE)"
 	@echo "Library:      $(STATIC_LIB)"
+
+# include build-generated header dependency files
+-include $(LIB_OBJS:.o=.d) $(BUILDDIR)/test_standalone.d
