@@ -480,6 +480,36 @@ int main() {
         test_match("core2", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64");
         test_match("haswell", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64-v3");
         test_match("znver4", "generic;x86-64-v2,clone_all;x86-64-v3,base(1);x86-64-v4,base(1)", "x86-64-v4");
+
+        // Regression: a host with cpu_name == "generic" but rich features
+        // (e.g. an unrecognized Intel model that fell through detection but
+        // still has AVX2 via CPUID) must rank by features and pick the
+        // feature-richest compatible shard, not lock onto the generic shard.
+        // See JuliaLang/julia#61626.
+        printf("\n--- match_targets: feature-richest compatible shard wins ---\n");
+        {
+            const CPUEntry *haswell = find_cpu("haswell");
+            check(haswell != nullptr, "haswell should be in the table");
+            if (haswell) {
+                auto sysimg_specs = tp::resolve_targets_for_llvm(
+                    "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)");
+                check(sysimg_specs.size() == 3, "release-like sysimage should parse to 3 specs");
+
+                // Synthesize a host: name "generic", features = haswell's.
+                tp::LLVMTargetSpec host{};
+                host.cpu_name = "generic";
+                host.en_features = haswell->features;
+                // dis_features must NOT include anything haswell enables, or the
+                // matcher will reject haswell as incompatible.
+                for (unsigned i = 0; i < TARGET_FEATURE_WORDS; i++)
+                    host.dis_features.bits[i] = ~haswell->features.bits[i];
+
+                auto match = tp::match_targets(sysimg_specs, host);
+                check(match.best_idx == 2,
+                      ("generic-named host with haswell features should pick haswell shard "
+                       "(got idx=" + std::to_string(match.best_idx) + ")").c_str());
+            }
+        }
     }
 #elif defined(__aarch64__) || defined(_M_ARM64)
     {
