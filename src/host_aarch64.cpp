@@ -88,8 +88,8 @@ const std::string &get_host_cpu_name() {
     return cpu_name;
 }
 
-// hw.optional.arm.caps bit definitions from XNU's cpu_capabilities_public.h.
-// This is a bitbuffer (CAP_BIT_NB = 80 bits = 10 bytes) queried in one
+// hw.optional.arm.caps bit definitions from XNU's cpu_capabilities_public.h
+// (MacOSX26.4.sdk, CAP_BIT_NB = 92). This is a bitbuffer queried in one
 // sysctlbyname call. Each entry maps a cap bit to an LLVM feature name.
 struct CapBitMap { unsigned cap_bit; const char *llvm_name; };
 static const CapBitMap cap_bit_map[] = {
@@ -105,7 +105,7 @@ static const CapBitMap cap_bit_map[] = {
     // { 9, "sha1"},       // CAP_BIT_FEAT_SHA1 — no separate LLVM feature (part of sha2)
     {10,  "aes"},          // CAP_BIT_FEAT_AES
     // {11, "pmull"},      // CAP_BIT_FEAT_PMULL — part of AES extension
-    // {12, "predres"},    // CAP_BIT_FEAT_SPECRES - inline ASM only (not codegen relevant)
+    // {12, "predres"},    // CAP_BIT_FEAT_SPECRES — inline ASM only (not codegen relevant)
     {13,  "sb"},           // CAP_BIT_FEAT_SB
     {14,  "fptoint"},      // CAP_BIT_FEAT_FRINTTS
     {15,  "rcpc"},         // CAP_BIT_FEAT_LRCPC
@@ -134,12 +134,28 @@ static const CapBitMap cap_bit_map[] = {
     {41,  "sme2"},         // CAP_BIT_FEAT_SME2
     {42,  "sme-f64f64"},   // CAP_BIT_FEAT_SME_F64F64
     {43,  "sme-i16i64"},   // CAP_BIT_FEAT_SME_I16I64
+    {44,  "sme2p1"},       // CAP_BIT_FEAT_SME2p1
+    {45,  "sme-f16f16"},   // CAP_BIT_FEAT_SME_F16F16
+    {46,  "sme-b16b16"},   // CAP_BIT_FEAT_SME_B16B16
+    // {47, "sme-f8f16"},  // CAP_BIT_FEAT_SME_F8F16 — implies fp8, which Apple's
+    // {48, "sme-f8f32"},  // CAP_BIT_FEAT_SME_F8F32   caps don't probe directly
     {49,  "neon"},         // CAP_BIT_AdvSIMD
+    // {50, "AdvSIMD_HPFPCvt"}, // no separate LLVM feature
     {51,  "crc"},          // CAP_BIT_FEAT_CRC32
+    // {52..57}            // SME tile-size subsets (F32F32, BI32I32, B16F32,
+    //                     // F16F32, I8I32, I16I32) — no separate LLVM features
+    // {58, "pacimp"},     // CAP_BIT_FEAT_PACIMP — no LLVM feature
+    {60,  "mte"},          // CAP_BIT_FEAT_MTE
+    // {61..63}            // MTE2/MTE3/MTE4 — no separate LLVM features
     {64,  "hbc"},          // CAP_BIT_FEAT_HBC
     // {65, "ebf16"},      // CAP_BIT_FEAT_EBF16 — no separate LLVM feature
-    // {66, "specres2"},   // CAP_BIT_FEAT_SPECRES2 — not codegen-relevant
+    // {66, "specres2"},   // CAP_BIT_FEAT_SPECRES2 — inline ASM only (per PR #31)
     {67,  "cssc"},         // CAP_BIT_FEAT_CSSC
+    // {68, "fpaccombine"},// CAP_BIT_FEAT_FPACCOMBINE — no separate LLVM feature
+    // {69..72}            // MTE async/canonical-tags/store-only/no-address-tags
+    //                     //   — sub-modes, no separate LLVM features
+    // {73, "fp_syncexceptions"}, // not an LLVM codegen feature
+    {91,  "sve-b16b16"},   // CAP_BIT_FEAT_SVE_B16B16
     {0, nullptr}           // sentinel
 };
 
@@ -214,16 +230,17 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             // Never present on Apple Silicon.
             "sve", "sve-aes", "sve-bitperm",
             "sve2", "sve-sha3", "sve-sm4",
-            "mte", "rand", "sm4",
+            "rand", "sm4",
             // No runtime probe support available yet.
             "clrbhb", "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
-            "mops", "f32mm", "f64mm", "f8f16mm", "f8f32mm",
+            "sme-f8f16", "sme-f8f32",
+            "mops",
+            "f32mm", "f64mm", "f8f16mm", "f8f32mm",
             "fprcvt", "gcs", "lse128", "lsfe", "rcpc3",
-            "sve-b16b16", "sve-f16f32mm", "sve2p1", "sve2p2",
-            "sme-b16b16", "sme-f16f16", "sme-f8f16", "sme-f8f32",
+            "sve-f16f32mm", "sve2p1", "sve2p2",
             "sme-fa64", "sme-lutv2", "sme-mop4", "sme-tmop",
-            "sme2p1", "sme2p2",
+            "sme2p2",
             "ssve-aes", "ssve-bitperm", "ssve-fexpa",
             "ssve-fp8dot2", "ssve-fp8dot4", "ssve-fp8fma",
 
