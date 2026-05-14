@@ -434,10 +434,12 @@ std::vector<LLVMTargetSpec> deserialize_targets(const uint8_t *data) {
 // Sysimage target matching
 // ============================================================================
 
+// Pick the best sysimage shard for `host`: reject shards that enable
+// features the host disables, then rank survivors by (vreg, feature count,
+// index).
 TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
                           const LLVMTargetSpec &host) {
     TargetMatch match;
-    bool match_name = false;
     int best_feat_count = 0;
 
     for (int i = 0; i < static_cast<int>(targets.size()); i++) {
@@ -451,18 +453,8 @@ TargetMatch match_targets(const std::vector<LLVMTargetSpec> &targets,
         if (feature_any(&conflict))
             continue;
 
-        bool name_match = (targets[i].cpu_name == host.cpu_name);
         int vreg = max_vector_size(targets[i].en_features);
         int feat_count = feature_popcount(&targets[i].en_features);
-
-        if (name_match && !match_name) {
-            // First name match resets the search
-            match_name = true;
-            match.vreg_size = 0;
-            best_feat_count = 0;
-        }
-        if (match_name && !name_match)
-            continue;
 
         if (vreg > match.vreg_size ||
             (vreg == match.vreg_size && feat_count > best_feat_count) ||
