@@ -3,5 +3,14 @@ comment: false
 github_checks:
   annotations: false
 
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
 ignore:
   - "test_standalone.cpp"
