@@ -105,7 +105,7 @@ static const CapBitMap cap_bit_map[] = {
     // { 9, "sha1"},       // CAP_BIT_FEAT_SHA1 — no separate LLVM feature (part of sha2)
     {10,  "aes"},          // CAP_BIT_FEAT_AES
     // {11, "pmull"},      // CAP_BIT_FEAT_PMULL — part of AES extension
-    {12,  "predres"},      // CAP_BIT_FEAT_SPECRES
+    // {12, "predres"},    // CAP_BIT_FEAT_SPECRES - inline ASM only (not codegen relevant)
     {13,  "sb"},           // CAP_BIT_FEAT_SB
     {14,  "fptoint"},      // CAP_BIT_FEAT_FRINTTS
     {15,  "rcpc"},         // CAP_BIT_FEAT_LRCPC
@@ -192,8 +192,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
         static const char *names[] = {
-            "fp-armv8", "chk",
-            "lor", "ras", "specrestrict",
+            "fp-armv8", "chk", "lor", "ras",
             nullptr
         };
         return names;
@@ -219,8 +218,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             // No runtime probe support available yet.
             "clrbhb", "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
-            "mops", "specres2",
-            "f32mm", "f64mm", "f8f16mm", "f8f32mm",
+            "mops", "f32mm", "f64mm", "f8f16mm", "f8f32mm",
             "fprcvt", "gcs", "lse128", "lsfe", "rcpc3",
             "sve-b16b16", "sve-f16f32mm", "sve2p1", "sve2p2",
             "sme-b16b16", "sme-f16f16", "sme-f8f16", "sme-f8f32",
@@ -343,10 +341,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "dit", "ecv", "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
             "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
-            "mops", "mte", "pauth", "predres", "rand", "ras",
+            "mops", "mte", "pauth", "rand", "ras",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
-            "specres2", "specrestrict", "ssve-fexpa",
-            "sve-f16f32mm", "sve2p2", "wfxt",
+            "ssve-fexpa", "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
         };
         return names;
@@ -847,8 +844,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
-            "clrbhb", "fpac",
-            "lor", "ras", "predres", "specres2", "specrestrict",
+            "clrbhb", "fpac", "lor", "ras",
             nullptr
         };
         return names;

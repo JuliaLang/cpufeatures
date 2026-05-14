@@ -386,7 +386,8 @@ static void emitFeatureTable(raw_ostream &OS,
         "ermsb", "fsrm",   // tuning hints (REP MOVS speed)
         "nopl",            // baseline assumption, not CPUID-detectable
         // aarch64:
-        "ssbs",            // speculative execution mitigation, not codegen-relevant.
+        // speculative execution mitigation, not codegen-relevant.
+        "ssbs", "ssbs2", "predres", "specrestrict", "specres", "specres2",
         // incorrectly categorized as a feature in LLVM 21
         // fixed in https://github.com/llvm/llvm-project/pull/152156)
         "use-fixed-over-scalable-if-equal-cost",
