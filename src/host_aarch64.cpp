@@ -384,8 +384,13 @@ struct ArmCPUInfo {
     const char *name;
 };
 
+// Implementer + part -> CPU name. Mapping mirrors LLVM's
+// getHostCPUNameForARMFromComponents() (llvm/lib/TargetParser/Host.cpp).
+// Names not present in cpufeatures' generated tables (e.g. "krait",
+// "ampere1c") are omitted; they would fall back to "generic" anyway.
 static const ArmCPUInfo arm_cpus[] = {
     // ARM Ltd. (0x41)
+    {0x41, 0xd02, "cortex-a34"},
     {0x41, 0xd03, "cortex-a53"},
     {0x41, 0xd04, "cortex-a35"},
     {0x41, 0xd05, "cortex-a55"},
@@ -397,22 +402,33 @@ static const ArmCPUInfo arm_cpus[] = {
     {0x41, 0xd0b, "cortex-a76"},
     {0x41, 0xd0c, "neoverse-n1"},
     {0x41, 0xd0d, "cortex-a77"},
+    {0x41, 0xd0e, "cortex-a76ae"},
     {0x41, 0xd40, "neoverse-v1"},
     {0x41, 0xd41, "cortex-a78"},
+    {0x41, 0xd42, "cortex-a78ae"},
+    {0x41, 0xd43, "cortex-a65ae"},
     {0x41, 0xd44, "cortex-x1"},
     {0x41, 0xd46, "cortex-a510"},
     {0x41, 0xd47, "cortex-a710"},
     {0x41, 0xd48, "cortex-x2"},
     {0x41, 0xd49, "neoverse-n2"},
+    {0x41, 0xd4a, "neoverse-e1"},
+    {0x41, 0xd4b, "cortex-a78c"},
+    {0x41, 0xd4c, "cortex-x1c"},
     {0x41, 0xd4d, "cortex-a715"},
     {0x41, 0xd4e, "cortex-x3"},
     {0x41, 0xd4f, "neoverse-v2"},
     {0x41, 0xd80, "cortex-a520"},
     {0x41, 0xd81, "cortex-a720"},
     {0x41, 0xd82, "cortex-x4"},
+    {0x41, 0xd83, "neoverse-v3ae"},
     {0x41, 0xd84, "neoverse-v3"},
     {0x41, 0xd85, "cortex-x925"},
     {0x41, 0xd87, "cortex-a725"},
+    {0x41, 0xd88, "cortex-a520ae"},
+    {0x41, 0xd89, "cortex-a720ae"},
+    {0x41, 0xd8e, "neoverse-n3"},
+    {0x41, 0xd8f, "cortex-a320"},
     // Broadcom / Cavium (0x42/0x43)
     {0x42, 0x516, "thunderx2t99"},
     {0x42, 0x0af, "thunderx2t99"},
@@ -427,8 +443,12 @@ static const ArmCPUInfo arm_cpus[] = {
     {0x48, 0xd01, "tsv110"},
     // NVIDIA (0x4e)
     {0x4e, 0x004, "carmel"},
+    {0x4e, 0x010, "olympus"},
     // Qualcomm (0x51)
     {0x51, 0x001, "oryon-1"},
+    {0x51, 0x201, "kryo"},
+    {0x51, 0x205, "kryo"},
+    {0x51, 0x211, "kryo"},
     {0x51, 0x800, "cortex-a73"},  // Kryo 2xx Gold
     {0x51, 0x801, "cortex-a73"},  // Kryo 2xx Silver
     {0x51, 0x802, "cortex-a75"},  // Kryo 3xx Gold
