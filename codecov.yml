@@ -2,3 +2,6 @@ comment: false
 
 github_checks:
   annotations: false
+
+ignore:
+  - "test_standalone.cpp"
