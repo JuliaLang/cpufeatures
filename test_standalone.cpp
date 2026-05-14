@@ -792,6 +792,19 @@ int main() {
         check(has_cross("aarch64", "cortex-x925", "sve2"), "cortex-x925 should have sve2");
         check(has_cross("riscv64", "sifive-u74",  "m"),    "sifive-u74 should have m (multiply)");
 
+        // AArch64 cross-lookup must surface uarch bits (v8.x / v9.x) and
+        // suppress privileged HW bits (EL2/EL3, user-space can't probe).
+        check( has_cross("aarch64", "cortex-x925", "v8.1a"),
+               "cortex-x925 cross-lookup should include uarch bit v8.1a");
+        check( has_cross("aarch64", "cortex-x925", "v9a"),
+               "cortex-x925 cross-lookup should include uarch bit v9a");
+        check(!has_cross("aarch64", "cortex-x925", "el2vmsa"),
+              "cortex-x925 cross-lookup should not include privileged bit el2vmsa");
+        check(!has_cross("aarch64", "cortex-x925", "el3"),
+              "cortex-x925 cross-lookup should not include privileged bit el3");
+        check(!has_cross("aarch64", "cortex-x925", "ccidx"),
+              "cortex-x925 cross-lookup should not include privileged bit ccidx");
+
         unsigned ver = tp::cross_tables_version_major("x86_64");
         printf("  tables version: %u\n", ver);
         check(ver >= 18, "tables version should be >= 18");
