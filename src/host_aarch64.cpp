@@ -152,27 +152,38 @@ FeatureBits detect_host_features() {
     FeatureBits features{};
     apply_host_baseline(&features);
 
-    // Read the full caps bitbuffer in one sysctlbyname call.
-    // Query size first — Apple may extend the buffer in future OS versions.
-    FeatureBits to_enable{};
-    FeatureBits to_disable{};
+    // hw.optional.arm.caps was introduced in macOS 15. Query size first
+    // since Apple may extend the buffer in future OS versions.
     size_t caps_len = 0;
+    std::vector<uint8_t> caps;
+    bool have_caps = false;
     if (sysctlbyname("hw.optional.arm.caps", nullptr, &caps_len, nullptr, 0) == 0
             && caps_len > 0) {
-        std::vector<uint8_t> caps(caps_len, 0);
-        if (sysctlbyname("hw.optional.arm.caps", caps.data(), &caps_len, nullptr, 0) == 0) {
-            for (const auto *m = cap_bit_map; m->llvm_name; m++) {
-                const FeatureEntry *fe = find_feature(m->llvm_name);
-                assert(fe && "could not find feature in cap_bit_map");
-                if (cap_test(caps.data(), caps_len, m->cap_bit))
-                    feature_set(&to_enable, fe->bit);
-                else
-                    feature_set(&to_disable, fe->bit);
-            }
-        }
+        caps.resize(caps_len);
+        have_caps = sysctlbyname("hw.optional.arm.caps", caps.data(),
+                                 &caps_len, nullptr, 0) == 0;
     }
 
-    apply_feature_delta(&features, to_enable, to_disable);
+    if (have_caps) {
+        FeatureBits to_enable{};
+        FeatureBits to_disable{};
+        for (const auto *m = cap_bit_map; m->llvm_name; m++) {
+            const FeatureEntry *fe = find_feature(m->llvm_name);
+            assert(fe && "could not find feature in cap_bit_map");
+            if (cap_test(caps.data(), caps_len, m->cap_bit))
+                feature_set(&to_enable, fe->bit);
+            else
+                feature_set(&to_disable, fe->bit);
+        }
+        apply_feature_delta(&features, to_enable, to_disable);
+    } else {
+        // On older macOS the sysctl doesn't exist, so fall back to the
+        // CPU's table-defined features (identified via hw.cpufamily in
+        // get_host_cpu_name, which already falls back to apple-m1 when
+        // the family is unrecognized).
+        if (const CPUEntry *cpu = find_cpu(get_host_cpu_name().c_str()))
+            feature_or(&features, &cpu->features);
+    }
     return features;
 }
 
