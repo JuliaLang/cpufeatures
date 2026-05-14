@@ -94,14 +94,29 @@ static CPUModel get_cpu_model() {
 // Host CPU name detection
 // ============================================================================
 
+// Model number -> CPU name. Mapping mirrors LLVM's
+// getIntelProcessorTypeAndSubtype() (llvm/lib/TargetParser/Host.cpp).
 static const char *detect_intel_cpu(const CPUModel &m) {
+    // Family 15 (NetBurst): Pentium 4 / Xeon. On x86_64 these are Nocona-class.
+    if (m.family == 15) {
+#if defined(__x86_64__) || defined(_M_X64)
+        switch (m.model) {
+        case 3: case 4: case 6: return "nocona";
+        default: return "generic";
+        }
+#else
+        return "generic";
+#endif
+    }
+
     if (m.family != 6) return "generic";
 
     switch (m.model) {
+    case 0x0e: return "yonah";
     case 0x0f:
     case 0x16: return "core2";
-    case 0x17:
-    case 0x1d: return "core2";
+    case 0x17: // Penryn / Wolfdale / Yorkfield
+    case 0x1d: return "penryn";
     case 0x1a:
     case 0x1e:
     case 0x1f:
@@ -121,10 +136,13 @@ static const char *detect_intel_cpu(const CPUModel &m) {
     case 0x47:
     case 0x4f:
     case 0x56: return "broadwell";
-    case 0x4e:
-    case 0x5e:
-    case 0x8e:
-    case 0x9e: return "skylake";
+    case 0x4e: // Skylake mobile
+    case 0x5e: // Skylake desktop
+    case 0x8e: // Kaby Lake mobile
+    case 0x9e: // Kaby Lake desktop
+    case 0xa5: // Comet Lake-H/S
+    case 0xa6: return "skylake"; // Comet Lake-U
+    case 0xa7: return "rocketlake";
     case 0x55: {
         if (m.stepping >= 5) return "cascadelake";
         return "skylake-avx512";
@@ -139,38 +157,117 @@ static const char *detect_intel_cpu(const CPUModel &m) {
     case 0x8f: return "sapphirerapids";
     case 0x97:
     case 0x9a: return "alderlake";
+    case 0xbe: return "gracemont";
     case 0xb7:
     case 0xba:
     case 0xbf: return "raptorlake";
     case 0xaa:
     case 0xac: return "meteorlake";
     case 0xbd: return "lunarlake";
-    case 0xc5: return "arrowlake";
+    case 0xc5:
+    case 0xb5: return "arrowlake";
     case 0xc6: return "arrowlake-s";
+    case 0xcc: return "pantherlake";
     case 0xcf: return "emeraldrapids";
-    case 0xad:
-    case 0xae: return "graniterapids";
+    case 0xad: return "graniterapids";
+    case 0xae: return "graniterapids-d";
+
+    // Atom / Bonnell line
+    case 0x1c: // 45 nm Atom
+    case 0x26: // 45 nm Atom Lincroft
+    case 0x27: // 32 nm Atom Medfield
+    case 0x35: // 32 nm Atom Midview
+    case 0x36: return "bonnell";
+
+    // Silvermont / Airmont (LLVM uses the silvermont tune for both)
+    case 0x37:
+    case 0x4a:
+    case 0x4d:
+    case 0x5a:
+    case 0x5d:
+    case 0x4c: return "silvermont"; // Airmont
+    case 0x5c: // Apollo Lake
+    case 0x5f: return "goldmont"; // Denverton
+    case 0x7a: return "goldmont-plus";
+
+    // Tremont
+    case 0x86: // Snow Ridge / Jacobsville
+    case 0x8a: // Lakefield
+    case 0x96: // Elkhart Lake
+    case 0x9c: return "tremont"; // Jasper Lake
+
+    case 0xaf: return "sierraforest";
+    case 0xb6: return "grandridge";
+    case 0xdd: return "clearwaterforest";
+
+    // Xeon Phi
+    case 0x57: return "knl";
+    case 0x85: return "knm";
+
     default: return "generic";
     }
 }
 
+// Model -> CPU name. Mapping mirrors LLVM's
+// getAMDProcessorTypeAndSubtype() (llvm/lib/TargetParser/Host.cpp).
 static const char *detect_amd_cpu(const CPUModel &m) {
     switch (m.family) {
-    case 0x10: return "amdfam10";
+    // Family 6 (K7) and 15 (K8) need feature probes for the SSE/SSE3 split.
+    // 64-bit AMD chips start at K8 with SSE2 mandatory; family 6 only appears
+    // on 32-bit hosts.
+    case 6: {
+        auto r = cpuid(1);
+        bool has_sse = (r.edx >> 25) & 1;
+        return has_sse ? "athlon-xp" : "athlon";
+    }
+    case 15: {
+        auto r = cpuid(1);
+        bool has_sse3 = r.ecx & 1;
+        return has_sse3 ? "k8-sse3" : "k8";
+    }
+
+    case 0x10: // K10
+    case 0x12: return "amdfam10"; // Llano (also K10-derived)
     case 0x14: return "btver1";
-    case 0x15:
-        if (m.model >= 0x60) return "bdver4";
-        if (m.model >= 0x30) return "bdver3";
-        if (m.model >= 0x02) return "bdver2";
-        return "bdver1";
+
+    case 0x15: // Bulldozer family
+        if (m.model >= 0x60 && m.model <= 0x7f) return "bdver4"; // Excavator
+        if (m.model >= 0x30 && m.model <= 0x3f) return "bdver3"; // Steamroller
+        if ((m.model >= 0x10 && m.model <= 0x1f) || m.model == 0x02)
+            return "bdver2"; // Piledriver
+        return "bdver1";     // Bulldozer
+
     case 0x16: return "btver2";
-    case 0x17:
-        if (m.model >= 0x30) return "znver2";
-        return "znver1";
-    case 0x19:
-        if (m.model >= 0x10) return "znver4";
+
+    case 0x17: // Zen / Zen+ / Zen2
+        // Zen2: 30h-3Fh (Starship), 47h (Cardinal), 60h-6Fh (Renoir),
+        // 68h-6Fh (Lucienne), 70h-7Fh (Matisse), 84h-87h (ProjectX),
+        // 90h-9Fh (VanGogh / Mero), A0h-AFh (Mendocino).
+        if ((m.model >= 0x30 && m.model <= 0x3f) || m.model == 0x47 ||
+            (m.model >= 0x60 && m.model <= 0x7f) ||
+            (m.model >= 0x84 && m.model <= 0x87) ||
+            (m.model >= 0x90 && m.model <= 0x9f) ||
+            (m.model >= 0xa0 && m.model <= 0xaf))
+            return "znver2";
+        return "znver1"; // Zen / Zen+ : 10h-2Fh
+
+    case 0x19: // Zen3 / Zen4
+        // Zen3: 00h-0Fh (Genesis/Chagall), 20h-2Fh (Vermeer),
+        // 30h-3Fh (Badami), 40h-4Fh (Rembrandt), 50h-5Fh (Cezanne).
+        if (m.model <= 0x0f ||
+            (m.model >= 0x20 && m.model <= 0x5f))
+            return "znver3";
+        // Zen4: 10h-1Fh (Stones/Storm Peak), 60h-6Fh (Raphael),
+        // 70h-7Fh (Phoenix/Hawkpoint), A0h-AFh (Stones-Dense).
+        if ((m.model >= 0x10 && m.model <= 0x1f) ||
+            (m.model >= 0x60 && m.model <= 0x7f) ||
+            (m.model >= 0xa0 && m.model <= 0xaf))
+            return "znver4";
         return "znver3";
-    case 0x1a: return "znver5";
+
+    case 0x1a: // Zen5 (no znver6 in the cpufeatures LLVM-21.1.8 tables yet)
+        return "znver5";
+
     default: return "generic";
     }
 }
