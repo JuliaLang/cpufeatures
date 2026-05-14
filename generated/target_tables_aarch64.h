@@ -608,7 +608,7 @@ static const FeatureEntry feature_table[] = {
     { "perfmon", "Enable Armv8.0-A PMUv3 Performance Monitors extension", 123, 1, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "pops", "Enable Armv9.6-A Point Of Physical Storage (PoPS) DC instructions", 124, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "predictable-select-expensive", "Prefer likely predicted branches over selects", 127, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "predres", "Enable Armv8.5-A execution and data prediction invalidation instructions", 126, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "predres", "Enable Armv8.5-A execution and data prediction invalidation instructions", 126, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "prfm-slc-target", "Enable SLC target for PRFM instruction", 122, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rand", "Enable Random Number generation instructions", 136, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ras", "Enable Armv8.0-A Reliability, Availability and Serviceability Extensions", 129, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -668,8 +668,8 @@ static const FeatureEntry feature_table[] = {
     { "sme2p2", "Enable Armv9.6-A Scalable Matrix Extension 2.2 instructions", 170, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x20000000000ULL, 0x0ULL, 0x0ULL } } },
     { "spe", "Enable Statistical Profiling extension", 181, 1, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "spe-eef", "Enable extra register in the Statistical Profiling Extension", 183, 1, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "specres2", "Enable Speculation Restriction Instruction", 182, 1, 0, 0, { { 0x0ULL, 0x4000000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "specrestrict", "Enable architectural speculation restriction", 206, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "specres2", "Enable Speculation Restriction Instruction", 182, 0, 0, 0, { { 0x0ULL, 0x4000000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "specrestrict", "Enable architectural speculation restriction", 206, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ssbs", "Enable Speculative Store Bypass Safe bit", 184, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ssve-aes", "Enable Armv9.6-A SVE AES support in streaming SVE mode", 185, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x10000000000ULL, 0x8ULL, 0x0ULL } } },
     { "ssve-bitperm", "Enable Armv9.6-A SVE BitPerm support in streaming SVE mode", 186, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x10000000000ULL, 0x80ULL, 0x0ULL } } },
@@ -752,10 +752,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 319;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x48e07febfc700affULL, 0xfefffffc000001ffULL, 0xf7fe0380d047afULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x8e07febfc700affULL, 0xfebffffc000001ffULL, 0xf7fe0380d007afULL, 0x0ULL } };
 
 // Codegen-relevant subset of hw_feature_mask (non-privileged features)
-static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x40801f4bf8300a7fULL, 0xfe5ffff40000017aULL, 0xf7fe01000047afULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x801f4bf8300a7fULL, 0xfe1ffff40000017aULL, 0xf7fe01000007afULL, 0x0ULL } };
 
 // CPU table: name, base features (from Implies), full resolved features
 typedef struct {
