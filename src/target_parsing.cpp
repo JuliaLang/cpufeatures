@@ -499,8 +499,39 @@ void apply_host_baseline(FeatureBits *features) {
     }
 }
 
+void apply_host_uarch(FeatureBits *features) {
+    const CPUEntry *cpu = find_cpu(get_host_cpu_name().c_str());
+    if (!cpu) return;
+
+    // Tentatively enable every uarch bit from the CPU model.
+    FeatureBits cpu_uarch;
+    feature_and_out(&cpu_uarch, &cpu->features, &uarch_feature_mask);
+    feature_or(features, &cpu_uarch);
+
+    // Drop any uarch bit whose required features (implies) aren't satisfied.
+    FeatureBits to_disable{};
+    for (unsigned i = 0; i < num_features; i++) {
+        const FeatureEntry &fe = feature_table[i];
+        if (!fe.is_uarch) continue;
+        if (!feature_test(features, fe.bit)) continue;
+
+        FeatureBits required;
+        feature_and_out(&required, &fe.implies, &llvm_feature_mask);
+
+        FeatureBits missing;
+        feature_andnot(&missing, &required, features);
+        if (feature_any(&missing))
+            feature_set(&to_disable, fe.bit);
+    }
+    apply_feature_delta(features, FeatureBits{}, to_disable);
+}
+
 FeatureBits get_host_features() {
-    static const FeatureBits cached = detect_host_features();
+    static const FeatureBits cached = []() {
+        FeatureBits f = detect_host_features();
+        apply_host_uarch(&f);
+        return f;
+    }();
     return cached;
 }
 

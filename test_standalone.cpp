@@ -47,10 +47,13 @@ int main() {
         check(!feat_str.empty(), "host feature string should not be empty");
         for (unsigned i = 0; i < num_features; i++) {
             if (feature_table[i].is_hw) continue;
-            std::string name = std::string("+") + feature_table[i].name;
-            bool found = feat_str.find(name) != std::string::npos;
+            if (feature_table[i].is_uarch) continue;
+            std::string enable_name = std::string("+") + feature_table[i].name;
+            std::string disable_name = std::string("-") + feature_table[i].name;
+            bool found = (feat_str.find(enable_name)  != std::string::npos ||
+                          feat_str.find(disable_name) != std::string::npos);
             check(!found,
-                  (std::string("non-hw feature '") + feature_table[i].name +
+                  (std::string("non-hw / non-uarch feature '") + feature_table[i].name +
                    "' should not appear in build_feature_string").c_str());
         }
         printf("  OK\n");
@@ -498,6 +501,30 @@ int main() {
             if (v82a) {
                 check(feature_test(&v82a->implies, find_feature("v8.1a")->bit),
                       "v8.2a should imply v8.1a");
+            }
+        }
+
+        printf("\n--- Feature string should include 'arch' feature bits ---\n");
+        {
+            const CPUEntry *host_entry = find_cpu(host_cpu.c_str());
+            FeatureBits table_uarch{}, detected_uarch{};
+            if (host_entry)
+                feature_and_out(&table_uarch, &host_entry->features, &uarch_feature_mask);
+            feature_and_out(&detected_uarch, &host_feats, &uarch_feature_mask);
+
+            if (!host_entry || !feature_any(&table_uarch)) {
+                printf("  %s has no uarch bits in its table entry (skip)\n",
+                       host_cpu.c_str());
+            } else {
+                bool any = feature_any(&detected_uarch);
+                check(any, "host CPU should have at least one detected uarch flag");
+                if (!any) {
+                    for (unsigned i = 0; i < num_features; i++)
+                        if (feature_test(&table_uarch, feature_table[i].bit))
+                            printf("    expected (from table): %s\n", feature_table[i].name);
+                } else {
+                    printf("  OK\n");
+                }
             }
         }
 
