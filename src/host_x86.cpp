@@ -74,6 +74,26 @@ struct CPUModel {
     unsigned stepping;
 };
 
+// Test a single CPUID feature bit. Returns false if the leaf isn't supported
+// or the bit is clear. `reg` is one of 'a','b','c','d'.
+static bool cpuid_bit(unsigned leaf, unsigned subleaf, char reg, unsigned bit) {
+    if (leaf < 0x80000000u) {
+        if (cpuid_max_leaf() < leaf) return false;
+    } else {
+        if (cpuid_max_ext_leaf() < leaf) return false;
+    }
+    if (leaf == 7 && subleaf > cpuid(7, 0).eax) return false;
+    auto r = cpuid(leaf, subleaf);
+    unsigned val = 0;
+    switch (reg) {
+        case 'a': val = r.eax; break;
+        case 'b': val = r.ebx; break;
+        case 'c': val = r.ecx; break;
+        case 'd': val = r.edx; break;
+    }
+    return ((val >> bit) & 1u) != 0;
+}
+
 static CPUModel get_cpu_model() {
     auto r = cpuid(1);
     CPUModel m;
@@ -97,16 +117,19 @@ static CPUModel get_cpu_model() {
 // Model number -> CPU name. Mapping mirrors LLVM's
 // getIntelProcessorTypeAndSubtype() (llvm/lib/TargetParser/Host.cpp).
 static const char *detect_intel_cpu(const CPUModel &m) {
-    // Family 15 (NetBurst): Pentium 4 / Xeon. On x86_64 these are Nocona-class.
+    // Family 15 (NetBurst): Pentium 4 / Xeon / Nocona.
     if (m.family == 15) {
 #if defined(__x86_64__) || defined(_M_X64)
-        switch (m.model) {
-        case 3: case 4: case 6: return "nocona";
-        default: return "generic";
-        }
+        return "nocona"; // any family-15 chip running x86_64 is Nocona-class
 #else
-        return "generic";
+        return cpuid_bit(1, 0, 'c', 0) ? "prescott" : "pentium4"; // sse3
 #endif
+    }
+
+    // Family 19 (Diamond Rapids).
+    if (m.family == 19) {
+        if (m.model == 0x01) return "diamondrapids";
+        return "generic";
     }
 
     if (m.family != 6) return "generic";
@@ -143,10 +166,10 @@ static const char *detect_intel_cpu(const CPUModel &m) {
     case 0xa5: // Comet Lake-H/S
     case 0xa6: return "skylake"; // Comet Lake-U
     case 0xa7: return "rocketlake";
-    case 0x55: {
-        if (m.stepping >= 5) return "cascadelake";
+    case 0x55: // SKX / CLX / CPX — distinguished by feature bits, not stepping
+        if (cpuid_bit(7, 1, 'a', 5))  return "cooperlake";   // avx512bf16
+        if (cpuid_bit(7, 0, 'c', 11)) return "cascadelake";  // avx512vnni
         return "skylake-avx512";
-    }
     case 0x66: return "cannonlake";
     case 0x6a:
     case 0x6c: return "icelake-server";
@@ -597,6 +620,7 @@ static void for_each_schedulable_cpu(Fn &&fn) {
     SetThreadAffinityMask(thread, saved);
     if (!ran) fn();
 #else
+    (void)fn;
     assert(false);
     __builtin_unreachable();
 #endif
