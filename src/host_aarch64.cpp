@@ -208,7 +208,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
         static const char *names[] = {
-            "fp-armv8", "chk", "lor", "ras",
+            "fp-armv8", "chk",
             nullptr
         };
         return names;
@@ -357,8 +357,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "altnzcv", "bti", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
             "dit", "ecv", "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
-            "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
-            "mops", "mte", "pauth", "rand", "ras",
+            "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lut",
+            "mops", "mte", "pauth", "rand",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
             "ssve-fexpa", "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
@@ -910,7 +910,6 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
-            "lor", "ras",
             nullptr
         };
         return names;
