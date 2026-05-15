@@ -670,9 +670,10 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     case HOST_FEATURE_DETECTABLE: {
         constexpr size_t N = sizeof(cpuid_features) / sizeof(cpuid_features[0]);
         static const auto names = []() {
-            std::array<const char *, N + 1> a{};
+            std::array<const char *, N + 2> a{};
             for (size_t i = 0; i < N; i++) a[i] = cpuid_features[i].feature_name;
-            a[N] = nullptr;
+            a[N] = "evex512"; // pseudo-feature used by LLVM (implied by avx512f)
+            a[N+1] = nullptr;
             return a;
         }();
         return names.data();
@@ -681,7 +682,6 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         static const char *names[] = {
             // AMX extensions detectable at CPUID(0x1E,1).EAX[4..8].
             "amx-transpose", // removed from architecture
-            "evex512", // pseudo-feature used by LLVM
 
             // FIXME: Unimplemented detection
             "amx-fp8", "amx-tf32", "amx-avx512", "amx-movrs",

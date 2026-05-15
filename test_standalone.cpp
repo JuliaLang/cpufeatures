@@ -209,6 +209,56 @@ int main() {
         }
     }
 
+    // Every CPU model used by Julia CI (compatible with this host arch)
+    // must contain no HW features that are undetectable on this host —
+    // otherwise the host cannot safely target that CPU model.
+    //
+    // see: JuliaCI/julia-buildkite utilities/build_envs.sh
+    printf("\n--- Julia CI CPU models have no undetectable bits ---\n");
+    {
+        FeatureBits undetectable{};
+        for (const char *const *p =
+                tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
+            feature_set(&undetectable, find_feature(*p)->bit);
+
+        const char *ci_cpus[] = {
+#if defined(__x86_64__) || defined(_M_X64)
+            "generic", "sandybridge", "haswell", "x86-64-v4",
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  #if defined(__APPLE__)
+            "generic", "apple-m1",
+  #else
+            "generic", "cortex-a57", "thunderx2t99", "carmel",
+            "apple-m1", "neoverse-512tvb",
+  #endif
+#endif
+            nullptr,
+        };
+
+        if (ci_cpus[0] == nullptr) {
+            printf("  SKIP (no CI CPU list for this platform)\n");
+        } else {
+            bool any_fail = false;
+            for (const char *const *p = ci_cpus; *p; p++) {
+                const CPUEntry *cpu = find_cpu(*p);
+                if (!cpu) { printf("  %s: NOT IN TABLE (skip)\n", *p); continue; }
+                FeatureBits inter;
+                feature_and_out(&inter, &cpu->features, &undetectable);
+                bool ok = !feature_any(&inter);
+                check(ok, (std::string("CI CPU '") + *p +
+                           "' must not contain undetectable feature bits").c_str());
+                if (!ok) {
+                    any_fail = true;
+                    for (unsigned i = 0; i < num_features; i++)
+                        if (feature_test(&inter, feature_table[i].bit))
+                            printf("    undetectable in %s: %s\n",
+                                   *p, feature_table[i].name);
+                }
+            }
+            printf("  %s\n", any_fail ? "FAILED" : "OK");
+        }
+    }
+
     // === 2. Sysimage things ===
 
     // Parse-only Julia CI tests — host-arch-independent. These run the
