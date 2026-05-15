@@ -229,6 +229,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         return empty;
 #endif
     }
+    case HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY:
+        return empty;
     case HOST_FEATURE_UNDETECTABLE:
         return empty;
     }

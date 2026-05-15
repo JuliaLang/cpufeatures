@@ -61,106 +61,172 @@ int main() {
 
     // Every name in the host-detection lists must resolve to a real HW
     // feature (not an unknown name, not a featureset umbrella).
-    printf("\n--- host detection HW-only ---\n");
+    printf("\n--- host detection list shapes ---\n");
     {
-        auto check_list = [&](tp::HostFeatureDetectionKind kind, const char *desc) {
+        // Names in DETECTABLE / UNDETECTABLE / IMPLICATION_ONLY must be HW
+        // (or uarch — uarch bits are valid in BASELINE / IMPLICATION_ONLY /
+        // UNDETECTABLE, never in DETECTABLE, since they're inferred, not
+        // directly probed). BASELINE features must be HW.
+        auto check_list = [&](tp::HostFeatureDetectionKind kind,
+                              const char *desc, bool forbid_uarch) {
             for (const char *const *p = tp::get_host_feature_detection(kind); *p; p++) {
                 const FeatureEntry *fe = find_feature(*p);
                 check(fe != nullptr,
                       (std::string(desc) + " feature '" + *p +
                        "' should be in the feature table").c_str());
                 if (!fe) continue;
-                check(fe->is_hw,
+                check(fe->is_hw || fe->is_uarch,
                       (std::string(desc) + " feature '" + *p +
-                       "' should be is_hw=1").c_str());
+                       "' must be is_hw=1 or is_uarch=1").c_str());
                 check(!fe->is_featureset,
                       (std::string(desc) + " feature '" + *p +
                        "' should not be a featureset umbrella").c_str());
+                if (forbid_uarch)
+                    check(!fe->is_uarch,
+                          (std::string(desc) + " feature '" + *p +
+                           "' is a uarch bit — uarch features are inferred, not "
+                           "directly probed, so they belong in BASELINE / "
+                           "IMPLICATION_ONLY / UNDETECTABLE").c_str());
             }
         };
-        check_list(tp::HOST_FEATURE_DETECTABLE,   "detectable");
-        check_list(tp::HOST_FEATURE_BASELINE,     "baseline");
-        check_list(tp::HOST_FEATURE_UNDETECTABLE, "undetectable");
+        check_list(tp::HOST_FEATURE_DETECTABLE,
+                   "detectable",   /*forbid_uarch=*/true);
+        check_list(tp::HOST_FEATURE_BASELINE,
+                   "baseline",     /*forbid_uarch=*/false);
+        check_list(tp::HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY,
+                   "implication_only", /*forbid_uarch=*/false);
+        check_list(tp::HOST_FEATURE_UNDETECTABLE,
+                   "undetectable", /*forbid_uarch=*/false);
         printf("  OK\n");
     }
 
-    printf("\n--- HW feature detection coverage ---\n");
+    printf("\n--- llvm_feature_mask coverage & closure ---\n");
     {
-        FeatureBits detectable{}, baseline{}, undetectable{};
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_DETECTABLE); *p; p++)
-            feature_set(&detectable, find_feature(*p)->bit);
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++) {
-            // Belt-and-suspenders: baseline names already vetted by the
-            // sub-section above, but assert is_hw here too (the cheaper
-            // up-front check covers the case where this section runs alone).
-            const FeatureEntry *fe = find_feature(*p);
-            check(fe->is_hw,
-                  (std::string("baseline feature '") + *p +
-                   "' must be is_hw=1").c_str());
-            feature_set(&baseline, fe->bit);
-        }
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
-            feature_set(&undetectable, find_feature(*p)->bit);
+        FeatureBits baseline{}, detectable{}, impl_only{}, undetectable{};
+        auto collect = [](tp::HostFeatureDetectionKind kind, FeatureBits *out) {
+            for (const char *const *p = tp::get_host_feature_detection(kind); *p; p++) {
+                const FeatureEntry *fe = find_feature(*p);
+                if (fe) feature_set(out, fe->bit);
+            }
+        };
+        collect(tp::HOST_FEATURE_BASELINE, &baseline);
+        collect(tp::HOST_FEATURE_DETECTABLE, &detectable);
+        collect(tp::HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY, &impl_only);
+        collect(tp::HOST_FEATURE_UNDETECTABLE, &undetectable);
 
-        // Any implied detectable HW bit should also be detectable or baseline.
-        FeatureBits implied = detectable;
-        _expand_entailed_enable_bits(&implied);
+        // Disjointness across the four sets.
+        check(!feature_intersects(&baseline, &detectable),
+              "baseline and detectable must be disjoint");
+        check(!feature_intersects(&baseline, &impl_only),
+              "baseline and implication_only must be disjoint");
+        check(!feature_intersects(&baseline, &undetectable),
+              "baseline and undetectable must be disjoint");
+        check(!feature_intersects(&detectable, &impl_only),
+              "detectable and implication_only must be disjoint");
+        check(!feature_intersects(&detectable, &undetectable),
+              "detectable and undetectable must be disjoint");
+        check(!feature_intersects(&impl_only, &undetectable),
+              "implication_only and undetectable must be disjoint");
+
+        // BASELINE and BASELINE ∪ DETECTABLE must both be transitively
+        // closed under implies — anything reachable that isn't already in
+        // those sets must be in implication_only.
+        FeatureBits closure_baseline = baseline;
+        _expand_entailed_enable_bits(&closure_baseline);
+        // Mask the closure down to codegen-relevant bits (skip
+        // privileged / featureset bits, which aren't categorized).
+        for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+            closure_baseline.bits[w] &= llvm_feature_mask.bits[w];
+
+        FeatureBits closure_full;
+        for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+            closure_full.bits[w] = baseline.bits[w] | detectable.bits[w];
+        _expand_entailed_enable_bits(&closure_full);
+        for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+            closure_full.bits[w] &= llvm_feature_mask.bits[w];
+
+        FeatureBits declared_total;
+        for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+            declared_total.bits[w] = baseline.bits[w] | detectable.bits[w]
+                                    | impl_only.bits[w];
+
+        // (1) closure(BASELINE) ⊆ BASELINE ∪ DETECTABLE ∪ IMPLICATION_ONLY.
+        FeatureBits missing_from_base;
+        feature_andnot(&missing_from_base, &closure_baseline, &declared_total);
+        for (unsigned i = 0; i < num_features; i++) {
+            if (feature_test(&missing_from_base, feature_table[i].bit))
+                check(false, (std::string("'") + feature_table[i].name +
+                              "' is transitively implied by BASELINE but is "
+                              "not in BASELINE/DETECTABLE/IMPLICATION_ONLY").c_str());
+        }
+
+        // (2) closure(BASELINE ∪ DETECTABLE) ⊆ BASELINE ∪ DETECTABLE ∪ IMPLICATION_ONLY.
+        // Equivalently: IMPLICATION_ONLY must contain everything reachable
+        // from probes/baseline that isn't directly listed.
+        FeatureBits missing_from_full;
+        feature_andnot(&missing_from_full, &closure_full, &declared_total);
+        for (unsigned i = 0; i < num_features; i++) {
+            if (feature_test(&missing_from_full, feature_table[i].bit))
+                check(false, (std::string("'") + feature_table[i].name +
+                              "' is transitively implied by BASELINE ∪ "
+                              "DETECTABLE but is not in BASELINE / "
+                              "DETECTABLE / IMPLICATION_ONLY — add it to "
+                              "the IMPLICATION_ONLY list").c_str());
+        }
+
+        // (3) UNDETECTABLE must not appear in the closure (nothing
+        // transitively-reachable should still be marked undetectable).
+        FeatureBits closure_vs_undetect;
+        feature_and_out(&closure_vs_undetect, &closure_full, &undetectable);
+        for (unsigned i = 0; i < num_features; i++) {
+            if (feature_test(&closure_vs_undetect, feature_table[i].bit))
+                check(false, (std::string("'") + feature_table[i].name +
+                              "' is in UNDETECTABLE but is transitively "
+                              "reachable from BASELINE ∪ DETECTABLE — move "
+                              "to IMPLICATION_ONLY").c_str());
+        }
+
+        // (4) Transitive UNDETECTABLE invariant: for every feature in
+        // llvm_feature_mask that is NOT in UNDETECTABLE, its (non-privileged,
+        // non-featureset) implies must not contain any UNDETECTABLE bit.
+        // The runtime would otherwise drop the feature when its undetectable
+        // dependency is force-disabled.
         for (unsigned i = 0; i < num_features; i++) {
             const FeatureEntry *fe = &feature_table[i];
-            if (feature_test(&implied, fe->bit) &&
-                !feature_test(&detectable, fe->bit) &&
-                !feature_test(&baseline, fe->bit)) {
-#if defined(_WIN32) && defined(__aarch64__)
-                // Windows AArch64 PF flags probe features that require fp8/sm4
-                // but no PF flag exposes those base features directly.
-                if (strcmp(fe->name, "fp8") == 0 || strcmp(fe->name, "sm4") == 0)
-                    continue;
-#endif
-                check(false, (std::string("'") + fe->name +
-                              "' is implied by a detectable HW bit but is not "
-                              "itself detectable or baseline").c_str());
+            if (!feature_test(&llvm_feature_mask, fe->bit)) continue;
+            if (feature_test(&undetectable, fe->bit)) continue;
+
+            FeatureBits required;
+            feature_and_out(&required, &fe->implies, &llvm_feature_mask);
+            FeatureBits bad;
+            feature_and_out(&bad, &required, &undetectable);
+            for (unsigned j = 0; j < num_features; j++) {
+                if (feature_test(&bad, feature_table[j].bit))
+                    check(false, (std::string("'") + fe->name +
+                                  "' transitively requires UNDETECTABLE '" +
+                                  feature_table[j].name +
+                                  "' — either probe it or add '" + fe->name +
+                                  "' to UNDETECTABLE").c_str());
             }
         }
 
-        // Every non-featureset HW bit must be in exactly one of
-        // baseline / detectable / undetectable.
-        FeatureBits categorized{};
-        check(!feature_intersects(&detectable, &baseline),
-              "baseline and detectable must be disjoint");
-        feature_or(&categorized, &baseline);
-        feature_or(&categorized, &detectable);
-        check(!feature_intersects(&categorized, &undetectable),
-              "baseline/detectable and undetectable must be disjoint");
-        feature_or(&categorized, &undetectable);
-
-        bool any_missing = false;
+        // (5) Coverage: every llvm_feature_mask bit must be in exactly one
+        // of the four sets.
         for (unsigned i = 0; i < num_features; i++) {
-            if (!feature_table[i].is_hw) continue;
-            if (feature_table[i].is_featureset) continue;
-            if (feature_table[i].is_privileged) continue;
-            if (!feature_test(&categorized, feature_table[i].bit)) {
-#if defined(_WIN32) && defined(__aarch64__)
-                if (strcmp(feature_table[i].name, "fp8") == 0 ||
-                    strcmp(feature_table[i].name, "sm4") == 0)
-                    continue;
-#endif
-                check(false, (std::string("HW feature '") +
-                              feature_table[i].name +
-                              "' is unhandled").c_str());
-                any_missing = true;
-            }
+            const FeatureEntry *fe = &feature_table[i];
+            if (!feature_test(&llvm_feature_mask, fe->bit)) continue;
+            bool in_any = feature_test(&baseline, fe->bit)
+                       || feature_test(&detectable, fe->bit)
+                       || feature_test(&impl_only, fe->bit)
+                       || feature_test(&undetectable, fe->bit);
+            if (!in_any)
+                check(false, (std::string("'") + fe->name +
+                              "' is in llvm_feature_mask but is not in any "
+                              "of BASELINE / DETECTABLE / IMPLICATION_ONLY "
+                              "/ UNDETECTABLE").c_str());
         }
-        if (any_missing) {
-            printf("    HW features must be categorized as:\n"
-                   "      - baseline      (always present)\n"
-                   "      - detectable    (has a runtime probe)\n"
-                   "      - undetectable  (no runtime probe, unsafe to enable)\n"
-                   "      - featureset    (only groups other features)\n");
-        }
-        printf("  %s\n", any_missing ? "FAILED" : "OK");
+
+        printf("  OK\n");
     }
 
     // Per-platform baseline CPU: any host on this platform/arch is expected

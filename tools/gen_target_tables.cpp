@@ -17,6 +17,8 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
+#include <fstream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -378,11 +380,138 @@ static FeatureBitset computeUArchMask(
     return computeMaskFromNames(Arch, Features, Names, "uarch feature");
 }
 
+// Convert an introduction version to the lowest LLVM uarch level on which
+// the feature can exist.
+//
+// Per the Arm Architecture Reference Manual:
+//   "An Armv8.x-A processor can implement any features from the next .x
+//   extension. However, it cannot implement features from any .x
+//   extension after that."
+//
+// So if a feature is introduced (optional or mandatory) at Armv8.X, the
+// lowest architecture level on which it can legitimately appear is
+// Armv8.(X-1)-A. Observing the feature only lets us conclude X-1, not X.
+//
+// Special cases: Armv8.0 is the v8 base so there's no lower level; we
+// pin to v8a (the implication is a no-op since v8a is implicit). Armv9.0
+// is defined as Armv8.5-A + Armv9-specific extensions, so its
+// predecessor for this purpose is v8.5a.
+static std::string armVersionToUArchName(StringRef Version) {
+    if (Version == "Armv8.0") return "v8a";
+    if (Version == "Armv8.1") return "v8a";
+    if (Version == "Armv9.0") return "v8.5a";
+    if (Version == "Armv9.1") return "v9a";
+    auto x_minus_one = [](StringRef V) -> std::string {
+        // V is "Armv8.X" or "Armv9.X"; V[4] is the major-version digit.
+        unsigned long X = std::strtoul(V.drop_front(6).str().c_str(),
+                                       nullptr, 10);
+        return (Twine("v") + V.substr(4, 1) + "."
+                + Twine(X - 1) + "a").str();
+    };
+    if (Version.starts_with("Armv8.")) return x_minus_one(Version);
+    if (Version.starts_with("Armv9.")) return x_minus_one(Version);
+    return "";
+}
+
+// Parse the vendored Arm FEAT_* table.
+// Returns a list of (LLVM feature name, uarch level name) pairs.
+//
+// Column layout (markdown pipe-separated):
+//   | Feature Name | Optional | Mandatory | LLVM | sysregs | Description
+static std::vector<std::pair<std::string, std::string>>
+        parseArmFeaturesFile(StringRef Path) {
+    std::vector<std::pair<std::string, std::string>> Result;
+    std::ifstream In(Path.str());
+    if (!In) {
+        errs() << "error: cannot open ARM feature table '" << Path << "'\n";
+        std::abort();
+    }
+    std::string Line;
+    while (std::getline(In, Line)) {
+        if (Line.size() < 4 || Line[0] != '|') continue;
+
+        std::vector<std::string> Cols;
+        size_t pos = 0;
+        while (pos < Line.size()) {
+            size_t bar = Line.find('|', pos);
+            if (bar == std::string::npos) {
+                Cols.push_back(Line.substr(pos));
+                break;
+            }
+            Cols.push_back(Line.substr(pos, bar - pos));
+            pos = bar + 1;
+        }
+        auto trim = [](std::string &s) {
+            while (!s.empty() && (s.front() == ' ' || s.front() == '\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+        };
+        for (auto &c : Cols) trim(c);
+
+        // Cols layout: ["", "FEAT_X", "Optional", "Mandatory", "LLVM", "sysregs", "desc"]
+        if (Cols.size() < 6) continue;
+        const std::string &Feat = Cols[1];
+        const std::string &Opt  = Cols[2];
+        const std::string &Mand = Cols[3];
+        const std::string &Llvm = Cols[4];
+
+        if (Feat.rfind("FEAT_", 0) != 0) continue;
+        if (Llvm.empty()) continue;
+
+        StringRef Version;
+        if (StringRef(Opt).starts_with("Armv"))  Version = Opt;
+        else if (StringRef(Mand).starts_with("Armv")) Version = Mand;
+        if (Version.empty()) continue;
+
+        std::string UArch = armVersionToUArchName(Version);
+        if (UArch.empty()) {
+            errs() << "error: unrecognized version '" << Version
+                   << "' for " << Feat << "\n";
+            std::abort();
+        }
+        Result.push_back({Llvm, UArch});
+    }
+    return Result;
+}
+
+static std::map<unsigned, unsigned> computeFeatureMinArchMap(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features,
+        StringRef ArmFeaturesPath) {
+    std::map<unsigned, unsigned> Result;
+    if (Arch != "aarch64") return Result;
+
+    auto Pairs = parseArmFeaturesFile(ArmFeaturesPath);
+
+    auto findValue = [&](StringRef Name) -> int {
+        for (const auto &F : Features)
+            if (F.Key == Name) return (int)F.Value;
+        return -1;
+    };
+
+    for (const auto &[LlvmName, UArch] : Pairs) {
+        int LV = findValue(LlvmName);
+        if (LV < 0) {
+            errs() << "error: arm_features.md LLVM cell '" << LlvmName
+                   << "' not in the LLVM aarch64 feature table\n";
+            std::abort();
+        }
+        int UV = findValue(UArch);
+        if (UV < 0) {
+            errs() << "error: uarch level '" << UArch
+                   << "' (derived for " << LlvmName
+                   << ") not in the LLVM aarch64 feature table\n";
+            std::abort();
+        }
+        Result[LV] = UV;
+    }
+    return Result;
+}
+
 static void emitFeatureTable(raw_ostream &OS,
                               StringRef Arch,
                               ArrayRef<SubtargetFeatureKV> Features,
                               ArrayRef<SubtargetSubTypeKV> CPUs,
-                              unsigned NumWords) {
+                              unsigned NumWords,
+                              StringRef ArmFeaturesPath) {
     FeatureBitset FeatureSetMask = computeFeatureFeatureSetMask(Arch, Features);
     FeatureBitset UArchMask = computeUArchMask(Arch, Features);
 
@@ -398,6 +527,8 @@ static void emitFeatureTable(raw_ostream &OS,
     FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask,
                                           UArchMask, ExtraHWMask);
     FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
+    std::map<unsigned, unsigned> FeatureMinArch =
+        computeFeatureMinArchMap(Arch, Features, ArmFeaturesPath);
 
     OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";
     OS << "// is_uarch, is_privileged, implied features.\n";
@@ -458,7 +589,14 @@ static void emitFeatureTable(raw_ostream &OS,
            << ", " << (IsUArch ? "1" : "0")
            << ", " << (IsPrivileged ? "1" : "0")
            << ", ";
-        emitFeatureBits(OS, F.Implies.getAsBitset(), NumWords);
+        FeatureBitset Implies = F.Implies.getAsBitset();
+        // Augment with the min architecture-level bit when known, so the
+        // runtime transitive-enable closure pulls in that level's
+        // mandatory baseline when this feature is probed.
+        auto MA = FeatureMinArch.find(F.Value);
+        if (MA != FeatureMinArch.end())
+            Implies.set(MA->second);
+        emitFeatureBits(OS, Implies, NumWords);
         OS << " },\n";
     }
     OS << "};\n\n";
@@ -608,13 +746,16 @@ int main(int argc, char **argv) {
     LLVMInitializeRISCVTargetMC();
 
     if (argc < 2) {
-        errs() << "Usage: " << argv[0] << " <triple>\n";
-        errs() << "  e.g.: " << argv[0] << " x86_64-unknown-linux-gnu\n";
+        errs() << "Usage: " << argv[0] << " <triple> [arm_features.md]\n";
+        errs() << "  e.g.: " << argv[0]
+               << " aarch64-unknown-linux-gnu tools/arm_features.md\n";
         return 1;
     }
 
     Triple TT(Triple::normalize(argv[1]));
     std::string Arch = TT.getArchName().str();
+    StringRef ArmFeaturesPath =
+        argc >= 3 ? StringRef(argv[2]) : StringRef("tools/arm_features.md");
 
     auto STI = getSTI(TT);
     if (!STI) return 1;
@@ -637,7 +778,7 @@ int main(int argc, char **argv) {
 
     emitBitsetType(OS, NumWords);
     emitFeatureEnum(OS, Features);
-    emitFeatureTable(OS, Arch, Features, CPUs, NumWords);
+    emitFeatureTable(OS, Arch, Features, CPUs, NumWords, ArmFeaturesPath);
     emitCPUTable(OS, TT, CPUs, Features, NumWords);
     emitLookupFunctions(OS);
     emitFooter(OS, Arch);

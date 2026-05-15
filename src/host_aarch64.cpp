@@ -225,6 +225,10 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
+    case HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY: {
+        static const char *names[] = { nullptr };
+        return names;
+    }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
             // Never present on Apple Silicon.
@@ -349,6 +353,10 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             return a;
         }();
         return names.data();
+    }
+    case HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY: {
+        static const char *names[] = { nullptr };
+        return names;
     }
     case HOST_FEATURE_UNDETECTABLE: {
         // HW features LLVM knows about for AArch64 that have no

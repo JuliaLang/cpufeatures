@@ -109,8 +109,8 @@ $(GEN_TOOL): $(TOOLDIR)/gen_target_tables.cpp $(LLVM_DOWNLOAD_DEP) | $(BUILDDIR)
 $(GENDIR)/target_tables_x86_64.h: $(GEN_TOOL) | $(GENDIR)
 	$(GEN_TOOL) x86_64-unknown-linux-gnu > $@
 
-$(GENDIR)/target_tables_aarch64.h: $(GEN_TOOL) | $(GENDIR)
-	$(GEN_TOOL) aarch64-unknown-linux-gnu > $@
+$(GENDIR)/target_tables_aarch64.h: $(GEN_TOOL) $(TOOLDIR)/arm_features.md | $(GENDIR)
+	$(GEN_TOOL) aarch64-unknown-linux-gnu $(TOOLDIR)/arm_features.md > $@
 
 $(GENDIR)/target_tables_riscv64.h: $(GEN_TOOL) | $(GENDIR)
 	$(GEN_TOOL) riscv64-unknown-linux-gnu > $@
