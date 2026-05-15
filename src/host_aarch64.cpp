@@ -208,7 +208,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     switch (kind) {
     case HOST_FEATURE_BASELINE: {
         static const char *names[] = {
-            "fp-armv8", "chk", "lor", "ras",
+            "fp-armv8", "chk",
             nullptr
         };
         return names;
@@ -357,8 +357,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "altnzcv", "bti", "ccdp", "ccpp", "clrbhb", "complxnum", "cssc",
             "dit", "ecv", "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
-            "fptoint", "gcs", "hbc", "lor", "ls64", "lse128", "lsfe", "lut",
-            "mops", "mte", "pauth", "rand", "ras",
+            "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lut",
+            "mops", "mte", "pauth", "rand",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
             "ssve-fexpa", "sve-f16f32mm", "sve2p2", "wfxt",
             nullptr
@@ -494,6 +494,9 @@ static const ArmCPUInfo arm_cpus[] = {
 #ifndef AT_HWCAP4
 #define AT_HWCAP4 39
 #endif
+#ifndef HWCAP_CPUID
+#define HWCAP_CPUID (1UL << 11)
+#endif
 
 static inline unsigned long _getauxval(unsigned long type) {
     unsigned long val;
@@ -542,6 +545,9 @@ const std::string &get_host_cpu_name() {
 #endif
 #ifndef AT_HWCAP4
 #define AT_HWCAP4 30
+#endif
+#ifndef HWCAP_CPUID
+#define HWCAP_CPUID (1UL << 11)
 #endif
 
 static inline unsigned long _getauxval(unsigned long type) {
@@ -813,6 +819,7 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 45, 1, "sve-b16b16"},    // HWCAP2_SVE_B16B16
     {1UL << 46, 1, "rcpc3"},         // HWCAP2_LRCPC3
     {1UL << 47, 1, "lse128"},        // HWCAP2_LSE128
+    {1UL << 48, 1, "clrbhb"},        // HWCAP2_CLRBHB
     {1UL << 49, 1, "lut"},           // HWCAP2_LUT
     {1UL << 50, 1, "faminmax"},      // HWCAP2_FAMINMAX
     {1UL << 51, 1, "fp8"},           // HWCAP2_F8CVT
@@ -856,6 +863,27 @@ FeatureBits detect_host_features() {
             feature_set(&to_disable, fe->bit);
     }
 
+    // docs.kernel.org/arch/arm64/cpu-feature-registers.html
+    if ((hwcaps[0] & HWCAP_CPUID) != 0) {
+        uint64_t isar1, isar2;
+        __asm__("mrs %0, S3_0_C0_C6_1" : "=r"(isar1));  // ID_AA64ISAR1_EL1
+        __asm__("mrs %0, S3_0_C0_C6_2" : "=r"(isar2));  // ID_AA64ISAR2_EL1
+
+        struct { const char *name; bool present; } id_probes[] = {
+            // FEAT_FPAC is implied when any pauth flavor
+            // (APA / API / APA3) reports field value >= 4.
+            {"fpac",   ((isar1 >> 4)  & 0xf) >= 4 ||
+                       ((isar1 >> 8)  & 0xf) >= 4 ||
+                       ((isar2 >> 12) & 0xf) >= 4},
+        };
+        for (const auto &p : id_probes) {
+            const FeatureEntry *fe = find_feature(p.name);
+            assert(fe && "id_probes names a feature missing from the table");
+            if (p.present) feature_set(&to_enable, fe->bit);
+            else           feature_set(&to_disable, fe->bit);
+        }
+    }
+
     apply_feature_delta(&features, to_enable, to_disable);
     return features;
 }
@@ -870,10 +898,11 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     case HOST_FEATURE_DETECTABLE: {
         constexpr size_t N = sizeof(hwcap_map) / sizeof(hwcap_map[0]);
         static const auto names = []() {
-            std::array<const char *, N + 1> a{};
+            std::array<const char *, N + 2> a{};
             size_t n = 0;
             for (const auto *m = hwcap_map; m->llvm_name; m++)
                 a[n++] = m->llvm_name;
+            a[n++] = "fpac";
             a[n] = nullptr;
             return a;
         }();
@@ -881,7 +910,6 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
-            "clrbhb", "fpac", "lor", "ras",
             nullptr
         };
         return names;

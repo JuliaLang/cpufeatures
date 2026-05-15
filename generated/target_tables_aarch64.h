@@ -569,7 +569,7 @@ static const FeatureEntry feature_table[] = {
     { "jsconv", "Enable Armv8.3-A JavaScript FP conversion instructions", 91, 1, 0, 0, 0, { { 0x0ULL, 0x10ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "kryo", "Qualcomm Kryo processors", 291, 0, 0, 0, 0, { { 0x2ULL, 0xa000000000000000ULL, 0x0ULL, 0x4000008000ULL, 0x0ULL } } },
     { "ldp-aligned-only", "In order to emit ldp, first check if the load will be aligned to 2 * element_size", 100, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "lor", "Enable Armv8.1-A Limited Ordering Regions extension", 92, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "lor", "Enable Armv8.1-A Limited Ordering Regions extension", 92, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ls64", "Enable Armv8.7-A LD64B/ST64B Accelerator Extension", 93, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "lse", "Enable Armv8.1-A Large System Extension (LSE) atomic instructions", 94, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "lse128", "Enable Armv9.4-A 128-bit Atomic instructions", 96, 1, 0, 0, 0, { { 0x0ULL, 0x40000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -612,7 +612,7 @@ static const FeatureEntry feature_table[] = {
     { "predres", "Enable Armv8.5-A execution and data prediction invalidation instructions", 126, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "prfm-slc-target", "Enable SLC target for PRFM instruction", 122, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rand", "Enable Random Number generation instructions", 136, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "ras", "Enable Armv8.0-A Reliability, Availability and Serviceability Extensions", 129, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "ras", "Enable Armv8.0-A Reliability, Availability and Serviceability Extensions", 129, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rasv2", "Enable Armv8.9-A Reliability, Availability and Serviceability Extensions", 130, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x2ULL, 0x0ULL, 0x0ULL } } },
     { "rcpc", "Enable support for RCPC extension", 131, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rcpc-immo", "Enable Armv8.4-A RCPC instructions with Immediate Offsets", 133, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x8ULL, 0x0ULL, 0x0ULL } } },
@@ -753,10 +753,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 319;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x8e07febfc700affULL, 0xfebffffc000001ffULL, 0x380d007afULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0xdc5e1a0071f6080dULL, 0x8e07febec700affULL, 0xfebffffc000001fdULL, 0x380d007afULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
-static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x801f4bf8300a7fULL, 0xfe1ffff40000017aULL, 0x7fffe01000007afULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0xdc42120071d20801ULL, 0x801f4be8300a7fULL, 0xfe1ffff400000178ULL, 0x7fffe01000007afULL, 0x0ULL } };
 
 // Mask of architecture-level uarch features (e.g. v8.4a). Included
 // in the LLVM feature string but ignored for target matching.
