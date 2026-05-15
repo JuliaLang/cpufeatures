@@ -677,6 +677,10 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
+    case HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY: {
+        static const char *names[] = { nullptr };
+        return names;
+    }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
             // AMX extensions detectable at CPUID(0x1E,1).EAX[4..8].

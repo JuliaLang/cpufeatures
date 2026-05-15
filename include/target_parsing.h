@@ -204,6 +204,13 @@ enum HostFeatureDetectionKind {
     // Always present and never probed for at runtime.
     HOST_FEATURE_BASELINE,
 
+    // Features with no direct runtime probe, but reachable via the implies
+    // closure of BASELINE ∪ DETECTABLE. e.g. on AArch64 we never probe v8.1a
+    // directly, but probing FEAT_DotProd (which implies v8.1a in the
+    // generated table) transitively enables it along with v8.1a's mandatory
+    // baseline (lor, rdm, ...).
+    HOST_FEATURE_DETECTABLE_BY_IMPLICATION_ONLY,
+
     // Features the host has no runtime probe for.
     // These features are dangerous to enable at runtime since `cpufeatures`
     // will not notice when the OS or CPU does not support them.
