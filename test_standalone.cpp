@@ -842,6 +842,67 @@ int main() {
               "all arches should report the same tables version");
     }
 
+    // === 4. ISA-baseline lookup (aarch64 has the only LLVM-modelled hierarchy) ===
+    printf("\n--- ISA-baseline lookup ---\n");
+    {
+        tp::CrossFeatureBits fb;
+
+        // aarch64: every ArchInfo level should resolve.
+        check( tp::cross_lookup_isa("aarch64", "armv8-a",    fb), "armv8-a should be found");
+        check( tp::cross_lookup_isa("aarch64", "armv9-a",    fb), "armv9-a should be found");
+        check( tp::cross_lookup_isa("aarch64", "armv9.2-a",  fb), "armv9.2-a should be found");
+        check(!tp::cross_lookup_isa("aarch64", "nonexistent",fb), "unknown ISA should not be found");
+
+        // arm64 normalizes to aarch64.
+        check(tp::cross_lookup_isa("arm64", "armv9.2-a", fb),
+              "arm64 alias should resolve");
+
+        // x86 / RISC-V have no ISA baselines.
+        check(!tp::cross_lookup_isa("x86_64",  "x86-64-v3",  fb), "x86_64 ISA lookup returns false");
+        check(!tp::cross_lookup_isa("riscv64", "rv64gc",     fb), "riscv64 ISA lookup returns false");
+
+        // Capture baseline feature sets for v9.0-A and v9.2-A and check
+        // (a) v9.2 is a strict superset of v9.0 (resolves the N2/N3 collision
+        //     in per-CPU masks, where v9.0-A and v9.2-A weren't distinguished),
+        // (b) a v9.0-A chip (neoverse-n2) satisfies v9.0 but not v9.2,
+        // (c) a v9.2-A chip (neoverse-v3) satisfies both.
+        tp::CrossFeatureBits b90{}, b92{}, n2{}, v3{};
+        check(tp::cross_lookup_isa("aarch64", "armv9-a",   b90), "lookup v9.0 baseline");
+        check(tp::cross_lookup_isa("aarch64", "armv9.2-a", b92), "lookup v9.2 baseline");
+        check(tp::cross_lookup_cpu("aarch64", "neoverse-n2", n2), "lookup neoverse-n2");
+        check(tp::cross_lookup_cpu("aarch64", "neoverse-v3", v3), "lookup neoverse-v3");
+
+        auto is_subset = [](const tp::CrossFeatureBits &a, const tp::CrossFeatureBits &b) {
+            for (unsigned i = 0; i < tp::MAX_FEATURE_WORDS; i++)
+                if (a.bits[i] & ~b.bits[i]) return false;
+            return true;
+        };
+        auto is_equal = [](const tp::CrossFeatureBits &a, const tp::CrossFeatureBits &b) {
+            for (unsigned i = 0; i < tp::MAX_FEATURE_WORDS; i++)
+                if (a.bits[i] != b.bits[i]) return false;
+            return true;
+        };
+
+        check( is_subset(b90, b92), "v9.0 baseline must be a subset of v9.2");
+        check(!is_subset(b92, b90), "v9.2 baseline must add features over v9.0");
+        check(!is_equal (b90, b92), "v9.0 and v9.2 baselines must differ (LLVM CPU mask collision fix)");
+        check( is_subset(b90, n2),  "neoverse-n2 must satisfy v9.0 baseline");
+        check(!is_subset(b92, n2),  "neoverse-n2 must NOT satisfy v9.2 baseline (it's v9.0-A)");
+        check( is_subset(b90, v3),  "neoverse-v3 must satisfy v9.0 baseline");
+        check( is_subset(b92, v3),  "neoverse-v3 must satisfy v9.2 baseline");
+
+        // cross_lookup_target: ISA first, CPU fallback. Same name should never
+        // refer to both kinds in practice, so order is unambiguous.
+        check(tp::cross_lookup_target("aarch64", "armv9.2-a", fb),
+              "target lookup hits ISA path");
+        check(tp::cross_lookup_target("aarch64", "neoverse-v3", fb),
+              "target lookup falls back to CPU path");
+        check(tp::cross_lookup_target("x86_64", "haswell", fb),
+              "x86_64 target lookup (no ISA, falls back to CPU)");
+        check(!tp::cross_lookup_target("aarch64", "this-is-neither", fb),
+              "target lookup returns false when neither table matches");
+    }
+
     if (failures > 0) {
         printf("\nFAILED: %d test(s) failed.\n", failures);
         return 1;

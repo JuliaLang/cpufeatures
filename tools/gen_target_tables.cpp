@@ -320,6 +320,57 @@ static std::vector<StringRef> getUArchFeatureNamesAArch64() {
     return Result;
 }
 
+// Compute the HW feature bitset for an AArch64 ArchInfo's DefaultExts.
+// Each ArchInfo (e.g. ARMV9_2A) carries a list of ArchExtKind bits representing
+// the extensions defaulted-on for that architectural level (BF16, I8MM, RME,
+// ... for v9.2-A). We resolve those to LLVM SubtargetFeature names, set the
+// corresponding bits, apply the same forward closure as computeHWMask, and
+// mask through the HW filter so featureset / uarch / privileged / blacklisted
+// bits don't leak into the baseline.
+//
+// Result: the strict mandatory feature set at that ISA level, suitable as a
+// matching target for sysimage selection. Properly differentiated across
+// levels (v9.0-A ⊊ v9.2-A in DefaultExts), unlike per-CPU masks where
+// architectural levels are squashed into uarch tag bits and stripped.
+static FeatureBitset computeArchBaselineAArch64(
+        const llvm::AArch64::ArchInfo *AI,
+        ArrayRef<SubtargetFeatureKV> Features,
+        const FeatureBitset &HWMask) {
+    FeatureBitset Result;
+
+    // Resolve each defaulted ArchExtKind to its LLVM target feature name.
+    for (const auto &Ext : llvm::AArch64::Extensions) {
+        if (!AI->DefaultExts.test(Ext.ID)) continue;
+        StringRef FeatName = Ext.PosTargetFeature;
+        if (!FeatName.empty() && FeatName.front() == '+')
+            FeatName = FeatName.drop_front();
+        for (const auto &F : Features) {
+            if (F.Key == FeatName) {
+                Result.set(F.Value);
+                break;
+            }
+        }
+    }
+
+    // Forward closure: anything required by what we already have is in too.
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const auto &F : Features) {
+            if (Result.test(F.Value)) {
+                FeatureBitset before = Result;
+                Result |= F.Implies.getAsBitset();
+                if (Result != before) changed = true;
+            }
+        }
+    }
+
+    // Restrict to HW features (drops uarch / featureset / privileged / blacklisted).
+    Result &= HWMask;
+
+    return Result;
+}
+
 static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
     // Spec-defined collections from the RISC-V ISA manual.
     return {
@@ -378,7 +429,9 @@ static FeatureBitset computeUArchMask(
     return computeMaskFromNames(Arch, Features, Names, "uarch feature");
 }
 
-static void emitFeatureTable(raw_ostream &OS,
+// Returns the final HW mask (post-blacklist), for downstream emitters that
+// need the same masking applied (e.g. emitISABaselineTable).
+static FeatureBitset emitFeatureTable(raw_ostream &OS,
                               StringRef Arch,
                               ArrayRef<SubtargetFeatureKV> Features,
                               ArrayRef<SubtargetSubTypeKV> CPUs,
@@ -486,6 +539,8 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "static const FeatureBits uarch_feature_mask = ";
     emitFeatureBits(OS, UArchMask, NumWords);
     OS << ";\n\n";
+
+    return HWMask;
 }
 
 static void emitCPUTable(raw_ostream &OS,
@@ -520,6 +575,53 @@ static void emitCPUTable(raw_ostream &OS,
        << CPUs.size() << ";\n\n";
 }
 
+// Emit the ISA-baseline table.
+//
+// AArch64 has architecture-level baselines (v8.0-A through v9.6-A) derived
+// from llvm::AArch64::ArchInfo's DefaultExts. Other architectures don't have
+// an analogous concept in LLVM's TargetParser, so they emit an empty table
+// (consumers should fall back to CPU-table lookup for those arches).
+static void emitISABaselineTable(raw_ostream &OS, StringRef Arch,
+                                  ArrayRef<SubtargetFeatureKV> Features,
+                                  const FeatureBitset &HWMask,
+                                  unsigned NumWords) {
+    OS << "// ISA-baseline table: architectural-level name -> mandatory features.\n";
+    OS << "// Cross-arch consumers should fall back to cpu_table lookup when\n";
+    OS << "// num_isa_baselines == 0.\n";
+    OS << "typedef struct {\n";
+    OS << "    const char *name;       // e.g. \"armv9.2-a\"\n";
+    OS << "    FeatureBits features;   // mandatory features at this ISA level\n";
+    OS << "} ISABaselineEntry;\n\n";
+
+    std::vector<std::pair<std::string, FeatureBitset>> Entries;
+    if (Arch == "aarch64") {
+        for (const auto *AI : llvm::AArch64::ArchInfos) {
+            // Skip ARMV8R — has no relation to the v8a/v9a partial order and
+            // doesn't represent an A-profile baseline.
+            if (AI->Name == "armv8-r") continue;
+            Entries.emplace_back(AI->Name.str(),
+                                  computeArchBaselineAArch64(AI, Features, HWMask));
+        }
+    }
+
+    if (Entries.empty()) {
+        // Sentinel entry so the array is non-empty (portable C); count is 0.
+        OS << "static const ISABaselineEntry isa_baseline_table[] = "
+              "{{nullptr, {{0}}}};\n";
+        OS << "static const unsigned num_isa_baselines = 0;\n\n";
+    } else {
+        OS << "static const ISABaselineEntry isa_baseline_table[] = {\n";
+        for (const auto &[Name, Baseline] : Entries) {
+            OS << "    { \"" << Name << "\", ";
+            emitFeatureBits(OS, Baseline, NumWords);
+            OS << " },\n";
+        }
+        OS << "};\n";
+        OS << "static const unsigned num_isa_baselines = "
+           << Entries.size() << ";\n\n";
+    }
+}
+
 // Emit a feature enum for convenient access
 static void emitFeatureEnum(raw_ostream &OS,
                              ArrayRef<SubtargetFeatureKV> Features) {
@@ -548,6 +650,16 @@ static void emitLookupFunctions(raw_ostream &OS) {
     OS << "        if (cmp == 0) return &feature_table[mid];\n";
     OS << "        if (cmp < 0) lo = mid + 1;\n";
     OS << "        else hi = mid - 1;\n";
+    OS << "    }\n";
+    OS << "    return NULL;\n";
+    OS << "}\n\n";
+
+    OS << "// Linear scan for an ISA-level baseline by name (small table, unsorted).\n";
+    OS << "// Returns NULL if no matching baseline is registered (e.g. on x86/RISC-V).\n";
+    OS << "CPUFEATURES_UNUSED static const ISABaselineEntry *find_isa_baseline(const char *name) {\n";
+    OS << "    for (unsigned i = 0; i < num_isa_baselines; i++) {\n";
+    OS << "        if (isa_baseline_table[i].name && strcmp(isa_baseline_table[i].name, name) == 0)\n";
+    OS << "            return &isa_baseline_table[i];\n";
     OS << "    }\n";
     OS << "    return NULL;\n";
     OS << "}\n\n";
@@ -639,8 +751,9 @@ int main(int argc, char **argv) {
 
     emitBitsetType(OS, NumWords);
     emitFeatureEnum(OS, Features);
-    emitFeatureTable(OS, Arch, Features, CPUs, NumWords);
+    FeatureBitset HWMask = emitFeatureTable(OS, Arch, Features, CPUs, NumWords);
     emitCPUTable(OS, TT, CPUs, Features, NumWords);
+    emitISABaselineTable(OS, Arch, Features, HWMask, NumWords);
     emitLookupFunctions(OS);
     emitFooter(OS, Arch);
 

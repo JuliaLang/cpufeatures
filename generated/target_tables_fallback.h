@@ -42,11 +42,19 @@ typedef struct {
     FeatureBits features;
 } CPUEntry;
 
+typedef struct {
+    const char *name;
+    FeatureBits features;
+} ISABaselineEntry;
+
 static const FeatureEntry feature_table[] = {{nullptr, nullptr, 0, 0, 0, 0, 0, {{0}}}};
 static const CPUEntry cpu_table[] = {{nullptr, {{0}}, {{0}}, {{0}}}};
+static const ISABaselineEntry isa_baseline_table[] = {{nullptr, {{0}}}};
+static const unsigned num_isa_baselines = 0;
 
 static inline const FeatureEntry *find_feature(const char *) { return nullptr; }
 static inline const CPUEntry *_find_cpu_exact(const char *) { return nullptr; }
+static inline const ISABaselineEntry *find_isa_baseline(const char *) { return nullptr; }
 static inline void _expand_entailed_enable_bits(FeatureBits *) {}
 static inline void _expand_entailed_disable_bits(FeatureBits *) {}
 
