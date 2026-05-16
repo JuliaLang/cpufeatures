@@ -7,6 +7,7 @@
 // Per-arch table accessors (defined in tables_*.cpp)
 namespace tp::x86_64 {
     bool lookup_cpu(const char *name, CrossFeatureBits &out);
+    bool lookup_isa(const char *name, CrossFeatureBits &out);
     unsigned feature_words();
     unsigned nfeatures();
     unsigned ncpus();
@@ -20,6 +21,7 @@ namespace tp::x86_64 {
 
 namespace tp::aarch64 {
     bool lookup_cpu(const char *name, CrossFeatureBits &out);
+    bool lookup_isa(const char *name, CrossFeatureBits &out);
     unsigned feature_words();
     unsigned nfeatures();
     unsigned ncpus();
@@ -33,6 +35,7 @@ namespace tp::aarch64 {
 
 namespace tp::riscv64 {
     bool lookup_cpu(const char *name, CrossFeatureBits &out);
+    bool lookup_isa(const char *name, CrossFeatureBits &out);
     unsigned feature_words();
     unsigned nfeatures();
     unsigned ncpus();
@@ -81,6 +84,19 @@ bool cross_lookup_cpu(const char *arch, const char *cpu_name,
     std::memset(&features_out, 0, sizeof(features_out));
     DISPATCH(arch, lookup_cpu, cpu_name, features_out);
     return false;
+}
+
+bool cross_lookup_isa(const char *arch, const char *isa_name,
+                      CrossFeatureBits &features_out) {
+    std::memset(&features_out, 0, sizeof(features_out));
+    DISPATCH(arch, lookup_isa, isa_name, features_out);
+    return false;
+}
+
+bool cross_lookup_target(const char *arch, const char *name,
+                         CrossFeatureBits &features_out) {
+    if (cross_lookup_isa(arch, name, features_out)) return true;
+    return cross_lookup_cpu(arch, name, features_out);
 }
 
 unsigned cross_feature_words(const char *arch) {

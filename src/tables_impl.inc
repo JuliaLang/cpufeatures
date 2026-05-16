@@ -22,6 +22,16 @@ bool lookup_cpu(const char *name, CrossFeatureBits &out) {
     return true;
 }
 
+bool lookup_isa(const char *name, CrossFeatureBits &out) {
+    const ISABaselineEntry *b = find_isa_baseline(name);
+    if (!b) return false;
+    std::memset(&out, 0, sizeof(out));
+    out.num_words = TARGET_FEATURE_WORDS;
+    for (int i = 0; i < TARGET_FEATURE_WORDS; i++)
+        out.bits[i] = b->features.bits[i] & llvm_feature_mask.bits[i];
+    return true;
+}
+
 unsigned feature_words() { return TARGET_FEATURE_WORDS; }
 unsigned nfeatures() { return num_features; }
 unsigned ncpus() { return num_cpus; }

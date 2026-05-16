@@ -24,6 +24,21 @@ struct CrossFeatureBits {
 bool cross_lookup_cpu(const char *arch, const char *cpu_name,
                       CrossFeatureBits &features_out);
 
+// Look up an ISA-level baseline by architectural name (e.g. "armv9.2-a").
+// Returns true if a matching baseline exists for the given architecture.
+// Currently aarch64-only; returns false on architectures without an
+// LLVM-modelled architectural hierarchy (x86, i686, riscv64).
+// features_out is zeroed and filled with hw-masked features.
+bool cross_lookup_isa(const char *arch, const char *isa_name,
+                      CrossFeatureBits &features_out);
+
+// Generic lookup: tries the ISA-baseline table first, falls back to the CPU
+// table. Recommended entry point for callers handling user-provided
+// `-march` or `-mcpu` strings without knowing which kind they have.
+// Returns true if the name matched either table.
+bool cross_lookup_target(const char *arch, const char *name,
+                         CrossFeatureBits &features_out);
+
 // Get the number of feature words for an architecture.
 // Returns 0 if architecture is unknown.
 unsigned cross_feature_words(const char *arch);

@@ -977,6 +977,17 @@ static const CPUEntry cpu_table[] = {
 
 static const unsigned num_cpus = 51;
 
+// ISA-baseline table: architectural-level name -> mandatory features.
+// Cross-arch consumers should fall back to cpu_table lookup when
+// num_isa_baselines == 0.
+typedef struct {
+    const char *name;       // e.g. "armv9.2-a"
+    FeatureBits features;   // mandatory features at this ISA level
+} ISABaselineEntry;
+
+static const ISABaselineEntry isa_baseline_table[] = {{nullptr, {{0}}}};
+static const unsigned num_isa_baselines = 0;
+
 // Binary search for a feature by name (table is sorted)
 CPUFEATURES_UNUSED static const FeatureEntry *find_feature(const char *name) {
     int lo = 0, hi = (int)num_features - 1;
@@ -986,6 +997,16 @@ CPUFEATURES_UNUSED static const FeatureEntry *find_feature(const char *name) {
         if (cmp == 0) return &feature_table[mid];
         if (cmp < 0) lo = mid + 1;
         else hi = mid - 1;
+    }
+    return NULL;
+}
+
+// Linear scan for an ISA-level baseline by name (small table, unsorted).
+// Returns NULL if no matching baseline is registered (e.g. on x86/RISC-V).
+CPUFEATURES_UNUSED static const ISABaselineEntry *find_isa_baseline(const char *name) {
+    for (unsigned i = 0; i < num_isa_baselines; i++) {
+        if (isa_baseline_table[i].name && strcmp(isa_baseline_table[i].name, name) == 0)
+            return &isa_baseline_table[i];
     }
     return NULL;
 }
