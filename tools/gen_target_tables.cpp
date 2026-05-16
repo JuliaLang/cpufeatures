@@ -434,7 +434,7 @@ static void emitFeatureTable(raw_ostream &OS,
         if (F.Key[0] && std::isupper(static_cast<unsigned char>(F.Key[0])))
             HWMask.reset(F.Value);
         for (const char **bl = blacklist; *bl; bl++) {
-            if (F.Key == *bl) {
+            if (StringRef(F.Key) == *bl) {
                 HWMask.reset(F.Value);
                 break;
             }
