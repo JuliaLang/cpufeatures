@@ -626,12 +626,14 @@ int main(int argc, char **argv) {
     OS << "#include <string.h>\n\n";
     OS << "// Generated for triple: " << TT.str() << "\n";
     OS << "// " << Features.size() << " features, " << CPUs.size() << " CPUs\n\n";
+    OS << "namespace tp {\n\n";
 
     emitBitsetType(OS, NumWords);
     emitFeatureEnum(OS, Features);
     emitFeatureTable(OS, Arch, Features, CPUs, NumWords);
     emitCPUTable(OS, TT, CPUs, Features, NumWords);
     emitLookupFunctions(OS);
+    OS << "} // namespace tp\n\n";
     emitFooter(OS, Arch);
 
     return 0;

@@ -7,6 +7,8 @@
 
 #include <string_view>
 
+namespace tp {
+
 // Pure name mapping — no table lookups.
 // Callers should check if the result exists in their table.
 inline const char *resolve_cpu_alias(const char *name) {
@@ -22,6 +24,8 @@ inline const char *resolve_cpu_alias(const char *name) {
     for (const auto &a : aliases)
         if (sv == a.from) return a.to;
     return name;
+}
+
 }
 
 #endif // CPU_ALIASES_H

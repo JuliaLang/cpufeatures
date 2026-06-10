@@ -24,6 +24,8 @@
 // Generated for triple: x86_64-unknown-linux-gnu
 // 196 features, 129 CPUs
 
+namespace tp {
+
 // Feature bitset: 4 x uint64_t = 256 bits
 #define TARGET_FEATURE_WORDS 4
 #define TARGET_TABLES_LLVM_VERSION_MAJOR 21
@@ -1103,5 +1105,7 @@ CPUFEATURES_UNUSED static void _expand_entailed_disable_bits(FeatureBits *bits) 
         }
     }
 }
+
+} // namespace tp
 
 #endif // TARGET_TABLES_X86_64_H

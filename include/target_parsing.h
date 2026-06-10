@@ -22,11 +22,11 @@
 // CPU name alias resolution + find_cpu wrapper.
 #include "cpu_aliases.h"
 
+namespace tp {
+
 inline const CPUEntry *find_cpu(const char *name) {
     return _find_cpu_exact(resolve_cpu_alias(name));
 }
-
-namespace tp {
 
 // ============================================================================
 // Target parsing flags

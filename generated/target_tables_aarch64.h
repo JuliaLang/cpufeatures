@@ -24,6 +24,8 @@
 // Generated for triple: aarch64-unknown-linux-gnu
 // 319 features, 76 CPUs
 
+namespace tp {
+
 // Feature bitset: 5 x uint64_t = 320 bits
 #define TARGET_FEATURE_WORDS 5
 #define TARGET_TABLES_LLVM_VERSION_MAJOR 21
@@ -1137,5 +1139,7 @@ CPUFEATURES_UNUSED static void _expand_entailed_disable_bits(FeatureBits *bits) 
         }
     }
 }
+
+} // namespace tp
 
 #endif // TARGET_TABLES_AARCH64_H

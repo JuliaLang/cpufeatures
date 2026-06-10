@@ -6,11 +6,11 @@
 #include "cross_arch.h"
 #include <cstring>
 
+namespace CROSS_ARCH_NAMESPACE {
+
 static const CPUEntry *find_cpu(const char *name) {
     return _find_cpu_exact(resolve_cpu_alias(name));
 }
-
-namespace CROSS_ARCH_NAMESPACE {
 
 bool lookup_cpu(const char *name, CrossFeatureBits &out) {
     const CPUEntry *c = find_cpu(name);
