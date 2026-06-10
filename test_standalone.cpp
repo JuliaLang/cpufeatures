@@ -326,11 +326,13 @@ int main() {
                 check(specs[0].base == -1, "spec[0] base should be -1");
                 check(specs[1].cpu_name == "haswell", "spec[1] should be haswell");
                 check(specs[1].base == 0, "spec[1] base should be 0");
-                check(specs[1].diff.has_new_math, "haswell should have new math vs generic");
-                check(specs[1].diff.has_new_simd, "haswell should have new simd vs generic");
-                check(!specs[1].diff.has_new_float16, "haswell should NOT have new fp16 vs generic");
+                check(tp::has_feature(specs[1].en_features, "fma"),
+                      "haswell should have fma vs generic");
+                check(!tp::has_feature(specs[1].en_features, "avx512fp16"),
+                      "haswell should NOT have avx512fp16");
                 check(specs[2].cpu_name == "skylake-avx512", "spec[2] should be skylake-avx512");
-                check(specs[2].diff.has_new_simd, "skx should have new simd vs generic");
+                check(tp::has_feature(specs[2].en_features, "avx512f"),
+                      "skx should have avx512f");
                 check(tp::max_vector_size(specs[2].en_features) == 64,
                       "spec[2] vec_size should be 64 (avx512)");
 
@@ -352,17 +354,6 @@ int main() {
             const CPUEntry *hsw_cpu = find_cpu("haswell");
             const CPUEntry *skx_cpu = find_cpu("skylake-avx512");
             if (gen_cpu && hsw_cpu && skx_cpu) {
-                auto d1 = tp::compute_feature_diff(gen_cpu->features, hsw_cpu->features);
-                check(d1.has_new_math, "generic→haswell should have new math");
-                check(d1.has_new_simd, "generic→haswell should have new simd");
-
-                auto d2 = tp::compute_feature_diff(hsw_cpu->features, skx_cpu->features);
-                check(d2.has_new_simd, "haswell→skx should have new simd (avx512)");
-
-                auto d3 = tp::compute_feature_diff(hsw_cpu->features, hsw_cpu->features);
-                check(!d3.has_new_math, "same→same should have no new math");
-                check(!d3.has_new_simd, "same→same should have no new simd");
-
                 check(tp::max_vector_size(gen_cpu->features) == 16, "generic should be 16 (SSE)");
                 check(tp::max_vector_size(hsw_cpu->features) == 32, "haswell should be 32 (AVX)");
                 check(tp::max_vector_size(skx_cpu->features) == 64, "skx should be 64 (AVX-512)");
@@ -596,8 +587,8 @@ int main() {
                 check(specs[2].cpu_name == "cortex-a78", "spec[2] should be cortex-a78");
                 check(specs[2].base == 0, "spec[2] base should be 0");
                 // a78 is ARMv8.2, a57 is ARMv8.0 → must introduce new ISA bits
-                check(specs[2].diff.has_new_math || specs[2].diff.has_new_simd ||
-                      specs[2].diff.has_new_float16,
+                check(tp::has_feature(specs[2].en_features, "fullfp16") &&
+                      !tp::has_feature(specs[1].en_features, "fullfp16"),
                       "a78 should add new ISA features vs a57");
 
                 FeatureBits combined;
@@ -605,18 +596,6 @@ int main() {
                     combined.bits[w] = specs[1].en_features.bits[w] | specs[1].dis_features.bits[w];
                 check(feature_equal(&combined, &llvm_feature_mask),
                       "en | dis should equal llvm_feature_mask");
-            }
-        }
-
-        {
-            if (a57_cpu && a78_cpu) {
-                auto d_aa = tp::compute_feature_diff(a57_cpu->features, a78_cpu->features);
-                check(d_aa.has_new_simd || d_aa.has_new_math || d_aa.has_new_float16,
-                      "cortex-a57→cortex-a78 should add ISA bits");
-
-                auto d_same = tp::compute_feature_diff(a78_cpu->features, a78_cpu->features);
-                check(!d_same.has_new_math, "same→same should have no new math");
-                check(!d_same.has_new_simd, "same→same should have no new simd");
             }
         }
 
@@ -737,13 +716,6 @@ int main() {
                 check(feature_equal(&combined, &llvm_feature_mask),
                       "en | dis should equal llvm_feature_mask");
             }
-        }
-
-        // Feature diff: same→same has no new bits
-        if (u74_cpu) {
-            auto d_same = tp::compute_feature_diff(u74_cpu->features, u74_cpu->features);
-            check(!d_same.has_new_math, "same→same should have no new math");
-            check(!d_same.has_new_simd, "same→same should have no new simd");
         }
 
         // Serialization round-trip

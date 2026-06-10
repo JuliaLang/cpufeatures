@@ -61,14 +61,6 @@ struct ResolvedTarget {
     std::string ext_features;
 };
 
-// What changed between a derived target and its base, in codegen terms
-struct FeatureDiff {
-    bool has_new_math    = false;  // FMA/FMA4 (x86)
-    bool has_new_simd    = false;  // SSE4.1/AVX/AVX2/AVX512, SVE, RVV
-    bool has_new_float16 = false;  // avx512fp16, fullfp16, zfh
-    bool has_new_bfloat16 = false; // avx512bf16, bf16, zvfbfmin
-};
-
 // A fully resolved target ready for LLVM consumption
 struct LLVMTargetSpec {
     std::string cpu_name;        // Normalized for LLVM (-mcpu)
@@ -78,7 +70,6 @@ struct LLVMTargetSpec {
     uint32_t flags = 0;
     int base = -1;
     std::string ext_features;    // Pass-through features unknown to the library
-    FeatureDiff diff;            // What's new vs base target
 };
 
 // Options for resolve_targets_for_llvm
@@ -155,10 +146,6 @@ std::string build_llvm_feature_string(const FeatureBits &enabled,
 std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
     std::string_view target_str,
     const ResolveOptions &opts = {});
-
-// Compute feature diff between a base and derived feature set
-FeatureDiff compute_feature_diff(const FeatureBits &base,
-                                 const FeatureBits &derived);
 
 // Max vector register size in bytes for a feature set
 // (64=AVX-512, 32=AVX, 16=SSE/NEON, 256=SVE, 128=RVV, 0=none)

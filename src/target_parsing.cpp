@@ -144,37 +144,6 @@ std::vector<ResolvedTarget> resolve_targets(
 }
 
 // ============================================================================
-// Feature diff computation
-// ============================================================================
-
-FeatureDiff compute_feature_diff(const FeatureBits &base,
-                                  const FeatureBits &derived) {
-    FeatureBits diff;
-    feature_andnot(&diff, &derived, &base);
-
-    FeatureDiff result;
-
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    result.has_new_math = has_feature(diff, "fma") || has_feature(diff, "fma4");
-    result.has_new_simd = has_feature(diff, "avx") || has_feature(diff, "avx2") ||
-                          has_feature(diff, "avx512f") || has_feature(diff, "sse4.1");
-    result.has_new_float16 = has_feature(diff, "avx512fp16");
-    result.has_new_bfloat16 = has_feature(diff, "avx512bf16");
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    result.has_new_simd = has_feature(diff, "sve") || has_feature(diff, "sve2");
-    result.has_new_float16 = has_feature(diff, "fullfp16");
-    result.has_new_bfloat16 = has_feature(diff, "bf16");
-#elif defined(__riscv)
-    result.has_new_simd = has_feature(diff, "v") || has_feature(diff, "zve32x") ||
-                          has_feature(diff, "zve64d");
-    result.has_new_float16 = has_feature(diff, "zfh");
-    result.has_new_bfloat16 = has_feature(diff, "zvfbfmin");
-#endif
-
-    return result;
-}
-
-// ============================================================================
 // Vector register size
 // ============================================================================
 
@@ -343,12 +312,6 @@ std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
         if (!rt.ext_features.empty()) {
             spec.cpu_features += ',';
             spec.cpu_features += rt.ext_features;
-        }
-
-        // Compute diff from base target
-        if (i > 0) {
-            int base_idx = rt.base >= 0 ? rt.base : 0;
-            spec.diff = compute_feature_diff(resolved[base_idx].features, rt.features);
         }
 
         result.push_back(std::move(spec));
