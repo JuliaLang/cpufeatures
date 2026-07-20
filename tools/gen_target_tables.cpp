@@ -255,6 +255,15 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
     };
 }
 
+static std::vector<StringRef> getPrivilegedFeatureNamesLoongArch64() {
+    return {
+        // Virtualization & Binary Translation privileged extensions
+        "lvz", "lbt",
+        // Atomic memory instructions requiring privileged access
+        "lam-bh", "lamcas", "scq"
+    };
+}
+
 static FeatureBitset computePrivilegedMask(
         StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
     std::vector<StringRef> Names;
@@ -264,6 +273,8 @@ static FeatureBitset computePrivilegedMask(
         Names = getPrivilegedFeatureNamesAArch64();
     else if (Arch == "riscv64")
         Names = getPrivilegedFeatureNamesRISCV();
+    else if (Arch == "loongarch64")
+        Names = getPrivilegedFeatureNamesLoongArch64();
 
     FeatureBitset Mask;
     for (StringRef Name : Names) {
@@ -335,6 +346,11 @@ static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
     };
 }
 
+static std::vector<StringRef> getFeatureCollectionNamesLoongArch64() {
+    // No spec-defined feature collection aliases are currently defined upstream.
+    return {};
+}
+
 static FeatureBitset computeMaskFromNames(
         StringRef Arch, ArrayRef<SubtargetFeatureKV> Features,
         ArrayRef<StringRef> Names, const char *Kind) {
@@ -364,6 +380,8 @@ static FeatureBitset computeFeatureFeatureSetMask(
         Names = getFeatureCollectionNamesAArch64();
     else if (Arch == "riscv64")
         Names = getFeatureCollectionNamesRISCV();
+    else if (Arch == "loongarch64")
+        Names = getFeatureCollectionNamesLoongArch64();
     // x86_64 and fallback: no collection features.
     return computeMaskFromNames(Arch, Features, Names, "feature collection");
 }
@@ -598,6 +616,8 @@ int main(int argc, char **argv) {
     LLVMInitializeAArch64TargetMC();
     LLVMInitializeRISCVTargetInfo();
     LLVMInitializeRISCVTargetMC();
+    LLVMInitializeLoongArchTargetInfo();
+    LLVMInitializeLoongArchTargetMC();
 
     if (argc < 2) {
         errs() << "Usage: " << argv[0] << " <triple>\n";

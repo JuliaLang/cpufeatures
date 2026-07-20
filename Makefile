@@ -59,6 +59,9 @@ else ifeq ($(ARCH),aarch64)
 else ifeq ($(ARCH),riscv64)
   HOST_SRC = $(SRCDIR)/host_riscv.cpp
   HOST_TABLE = $(GENDIR)/target_tables_riscv64.h
+else ifeq ($(ARCH),loongarch64)
+  HOST_SRC = $(SRCDIR)/host_loongarch64.cpp
+  HOST_TABLE = $(GENDIR)/target_tables_loongarch64.h
 else
   HOST_SRC = $(SRCDIR)/host_fallback.cpp
   HOST_TABLE = $(GENDIR)/target_tables_fallback.h
@@ -67,12 +70,14 @@ endif
 # All generated table headers
 ALL_TABLES = $(GENDIR)/target_tables_x86_64.h \
              $(GENDIR)/target_tables_aarch64.h \
-             $(GENDIR)/target_tables_riscv64.h
+             $(GENDIR)/target_tables_riscv64.h \
+             $(GENDIR)/target_tables_loongarch64.h
 
 # Source files: host-specific + target parsing + cross-arch tables (all arches)
 CROSS_SRCS = $(SRCDIR)/tables_x86_64.cpp \
              $(SRCDIR)/tables_aarch64.cpp \
              $(SRCDIR)/tables_riscv64.cpp \
+             $(SRCDIR)/tables_loongarch64.cpp \
              $(SRCDIR)/cross_arch.cpp
 
 LIB_SRCS = $(SRCDIR)/target_parsing.cpp $(HOST_SRC) $(CROSS_SRCS)

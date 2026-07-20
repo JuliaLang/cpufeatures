@@ -86,7 +86,7 @@ endif
 
 .PHONY: all clean download
 
-all: $(GENDIR)/target_tables_x86_64.h $(GENDIR)/target_tables_aarch64.h $(GENDIR)/target_tables_riscv64.h
+all: $(GENDIR)/target_tables_x86_64.h $(GENDIR)/target_tables_aarch64.h $(GENDIR)/target_tables_riscv64.h $(GENDIR)/target_tables_loongarch64.h
 	@echo ""
 	@echo "Tables regenerated with LLVM $(LLVM_VER). Review and commit:"
 	@ls -1 $(GENDIR)/target_tables_*.h
@@ -114,6 +114,9 @@ $(GENDIR)/target_tables_aarch64.h: $(GEN_TOOL) | $(GENDIR)
 
 $(GENDIR)/target_tables_riscv64.h: $(GEN_TOOL) | $(GENDIR)
 	$(GEN_TOOL) riscv64-unknown-linux-gnu > $@
+
+$(GENDIR)/target_tables_loongarch64.h: $(GEN_TOOL) | $(GENDIR)
+	$(GEN_TOOL) loongarch64-unknown-linux-gnu > $@
 
 $(BUILDDIR) $(GENDIR):
 	mkdir -p $@

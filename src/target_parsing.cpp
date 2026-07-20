@@ -8,6 +8,8 @@
 #include "target_tables_aarch64.h"
 #elif defined(__riscv) && __riscv_xlen == 64
 #include "target_tables_riscv64.h"
+#elif defined(__loongarch__) && __loongarch_grlen == 64
+#include "target_tables_loongarch64.h"
 #else
 #include "target_tables_fallback.h"
 #endif
@@ -166,6 +168,12 @@ int max_vector_size(const FeatureBits &bits) {
         return 128; // RVV scalable
     if (has_feature(bits, "zve32x"))
         return 32;
+    return 0;
+#elif defined(__loongarch__)
+    if (has_feature(bits, "lasx"))
+        return 256;
+    if (has_feature(bits, "lsx"))
+        return 128;
     return 0;
 #else
     (void)bits;

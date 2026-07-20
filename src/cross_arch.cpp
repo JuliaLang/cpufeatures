@@ -44,6 +44,19 @@ namespace tp::riscv64 {
     unsigned tables_version_major();
 }
 
+namespace tp::loongarch64 {
+    bool lookup_cpu(const char *name, CrossFeatureBits &out);
+    unsigned feature_words();
+    unsigned nfeatures();
+    unsigned ncpus();
+    const char *feature_name_at(unsigned idx);
+    int feature_bit_at(unsigned idx);
+    int feature_bit_by_name(const char *name);
+    bool feature_is_hw_by_name(const char *name);
+    const char *cpu_name_at(unsigned idx);
+    unsigned tables_version_major();
+}
+
 namespace tp {
 
 // Normalize arch name variants
@@ -56,6 +69,8 @@ static const char *normalize_arch(const char *arch) {
         return "aarch64";
     if (std::strcmp(arch, "riscv64") == 0)
         return "riscv64";
+    if (std::strcmp(arch, "loongarch64") == 0)
+        return "loongarch64";
     return arch;
 }
 
@@ -66,6 +81,7 @@ static const char *normalize_arch(const char *arch) {
     if (std::strcmp(a, "x86_64") == 0)  return x86_64::func(); \
     if (std::strcmp(a, "aarch64") == 0) return aarch64::func(); \
     if (std::strcmp(a, "riscv64") == 0) return riscv64::func(); \
+    if (std::strcmp(a, "loongarch64") == 0) return loongarch64::func(); \
 } while(0)
 
 #define DISPATCH(arch_str, func, ...) do { \
@@ -74,6 +90,7 @@ static const char *normalize_arch(const char *arch) {
     if (std::strcmp(a, "x86_64") == 0)  return x86_64::func(__VA_ARGS__); \
     if (std::strcmp(a, "aarch64") == 0) return aarch64::func(__VA_ARGS__); \
     if (std::strcmp(a, "riscv64") == 0) return riscv64::func(__VA_ARGS__); \
+    if (std::strcmp(a, "loongarch64") == 0) return loongarch64::func(__VA_ARGS__); \
 } while(0)
 
 bool cross_lookup_cpu(const char *arch, const char *cpu_name,

@@ -15,6 +15,8 @@
 #include "target_tables_aarch64.h"
 #elif defined(__riscv) && __riscv_xlen == 64
 #include "target_tables_riscv64.h"
+#elif defined(__loongarch__) && __loongarch_grlen == 64
+#include "target_tables_loongarch64.h"
 #endif
 #include "target_parsing.h"
 #include "cross_arch.h"
@@ -179,6 +181,8 @@ int main() {
   #endif
 #elif defined(__riscv) && __riscv_xlen == 64
     const char *baseline_cpu = "sifive-u74";
+#elif defined(__loongarch__) && __loongarch_grlen == 64
+    const char *baseline_cpu = "generic-la64";
 #else
     const char *baseline_cpu = nullptr;
 #endif
@@ -761,6 +765,87 @@ int main() {
             }
         }
     }
+#elif defined(__loongarch__) && __loongarch_grlen == 64
+    {
+        // generic-la64 is the baseline CPU for LoongArch64 in LLVM.
+        // Used as both a fixture and a sample host.
+        const tp::CPUEntry *generic_cpu = tp::find_cpu("generic-la64");
+
+        check(tp::find_cpu("nonexistent") == nullptr,
+              "tp::find_cpu(nonexistent) should return nullptr");
+        check(generic_cpu != nullptr, "tp::find_cpu(generic-la64) should be in the table");
+
+        // Parser coverage: clone_all, +/-feature, opt_size
+        {
+            auto parsed = tp::parse_target_string(
+                "generic-la64,clone_all;generic-la64,+f,-d,opt_size");
+            check(parsed.size() == 2, "parser: should parse 2 targets");
+            if (parsed.size() == 2) {
+                check(parsed[0].flags & tp::TF_CLONE_ALL,
+                      "parser: first should have clone_all");
+                check(parsed[1].flags & tp::TF_OPTSIZE,
+                      "parser: second should have opt_size");
+                check(parsed[1].extra_features.size() == 2,
+                      "parser: second should have 2 extra features");
+            }
+        }
+
+        // resolve_targets_for_llvm — explicit CPU names, no host needed.
+        {
+            auto specs = tp::resolve_targets_for_llvm("generic-la64;generic-la64,clone_all");
+            check(specs.size() == 2, "should produce 2 specs");
+            if (specs.size() == 2) {
+                tp::FeatureBits combined;
+                for (int w = 0; w < TARGET_FEATURE_WORDS; w++)
+                    combined.bits[w] = specs[1].en_features.bits[w] | specs[1].dis_features.bits[w];
+                check(feature_equal(&combined, &tp::llvm_feature_mask),
+                      "en | dis should equal tp::llvm_feature_mask");
+            }
+        }
+
+        // Serialization round-trip
+        printf("\n--- Serialization round-trip (loongarch64) ---\n");
+        {
+            auto specs = tp::resolve_targets_for_llvm("generic-la64;generic-la64,clone_all");
+            auto blob = tp::serialize_targets(specs);
+            check(blob.size() > 0, "serialized data should be non-empty");
+
+            auto restored = tp::deserialize_targets(blob.data());
+            check(restored.size() == specs.size(), "round-trip: same count");
+            for (size_t i = 0; i < specs.size() && i < restored.size(); i++) {
+                check(restored[i].cpu_name == specs[i].cpu_name,
+                      ("round-trip name mismatch at " + std::to_string(i)).c_str());
+                check(restored[i].flags == specs[i].flags,
+                      ("round-trip flags mismatch at " + std::to_string(i)).c_str());
+                check(feature_equal(&restored[i].en_features, &specs[i].en_features),
+                      ("round-trip en_features mismatch at " + std::to_string(i)).c_str());
+                check(feature_equal(&restored[i].dis_features, &specs[i].dis_features),
+                      ("round-trip dis_features mismatch at " + std::to_string(i)).c_str());
+            }
+            printf("  OK (%zu bytes, %zu targets)\n", blob.size(), specs.size());
+        }
+
+        // Target matching via library API ("native" — needs host_opts).
+        printf("\n--- Target matching (loongarch64) ---\n");
+        if (generic_cpu) {
+            auto sysimg_specs = tp::resolve_targets_for_llvm("generic-la64");
+
+            tp::ResolveOptions host_opts;
+            host_opts.host_features = &generic_cpu->features;
+            host_opts.host_cpu = "generic-la64";
+            auto host_specs = tp::resolve_targets_for_llvm("native", host_opts);
+            check(!host_specs.empty(), "host should produce at least 1 spec");
+
+            if (!host_specs.empty()) {
+                auto match = tp::match_targets(sysimg_specs, host_specs[0]);
+                const char *matched = match.best_idx >= 0
+                    ? sysimg_specs[match.best_idx].cpu_name.c_str() : "NONE";
+                printf("  generic-la64 → [%d] %s\n", match.best_idx, matched);
+                check(match.best_idx >= 0,
+                      "generic-la64 host should match its own sysimg target");
+            }
+        }
+    }
 #else
     printf("\n--- Host-specific sysimage tests: SKIPPED (unknown host arch) ---\n");
 #endif
@@ -768,15 +853,21 @@ int main() {
     // === 3. Cross-arch queries ===
     printf("\n--- Cross-arch queries ---\n");
     {
-        const char *arches[] = {"x86_64", "aarch64", "riscv64"};
+        const char *arches[] = {"x86_64", "aarch64", "riscv64", "loongarch64"};
         for (const char *arch : arches) {
             unsigned nf = tp::cross_num_features(arch);
             unsigned nc = tp::cross_num_cpus(arch);
             unsigned nw = tp::cross_feature_words(arch);
             printf("  %s: %u features, %u CPUs, %u words\n", arch, nf, nc, nw);
-            check(nf > 50, "should have >50 features");
             check(nc > 5, "should have >5 CPUs");
-            check(nw >= 4 && nw <= 5, "should have 4 or 5 words");
+            if (std::string(arch) != "loongarch64") {
+                check(nf > 50, "should have >50 features");
+                check(nw >= 4 && nw <= 5, "should have 4 or 5 words");
+            } else {
+                // Temporary relaxed checks for loongarch64 to ensure basic feature coverage
+                check(nf > 10, "loongarch64 should have >10 features");
+                check(nw >= 1 && nw <= 5, "loongarch64 word count between 1~5");
+            }
         }
         check(tp::cross_num_features("arm64") == tp::cross_num_features("aarch64"),
               "arm64 should normalize to aarch64");
@@ -785,6 +876,7 @@ int main() {
         check(tp::cross_lookup_cpu("x86_64", "haswell", fb),     "haswell should be found");
         check(tp::cross_lookup_cpu("aarch64", "cortex-a78", fb), "cortex-a78 should be found");
         check(tp::cross_lookup_cpu("riscv64", "sifive-u74", fb), "sifive-u74 should be found");
+        check(tp::cross_lookup_cpu("loongarch64", "generic-la64", fb), "generic-la64 should be found");
         check(!tp::cross_lookup_cpu("x86_64", "nonexistent", fb), "nonexistent should not be found");
 
         auto has_cross = [&](const char *arch, const char *cpu, const char *feat) {
@@ -797,6 +889,7 @@ int main() {
         check(has_cross("x86_64",  "haswell",     "avx2"), "haswell should have avx2");
         check(has_cross("aarch64", "cortex-x925", "sve2"), "cortex-x925 should have sve2");
         check(has_cross("riscv64", "sifive-u74",  "m"),    "sifive-u74 should have m (multiply)");
+        check(has_cross("loongarch64", "generic-la64", "f"),    "generic-la64 should have f (single-precision FP)");
 
         // AArch64 cross-lookup must surface uarch bits (v8.x / v9.x) and
         // suppress privileged HW bits (EL2/EL3, user-space can't probe).
