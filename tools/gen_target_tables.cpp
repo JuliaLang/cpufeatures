@@ -161,13 +161,17 @@ static void emitFeatureBits(raw_ostream &OS, const FeatureBitset &Bits, unsigned
 static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
                                     ArrayRef<SubtargetSubTypeKV> CPUs,
                                     const FeatureBitset &FeatureSetMask,
-                                    const FeatureBitset &UArchMask) {
+                                    const FeatureBitset &UArchMask,
+                                    const FeatureBitset &ExtraHWMask) {
     FeatureBitset HWMask;
     FeatureBitset TuneImplied;
     for (const auto &CPU : CPUs) {
         HWMask      |= CPU.Implies.getAsBitset();
         TuneImplied |= CPU.TuneImplies.getAsBitset();
     }
+    // Seed the closures with features known to be real hardware
+    // (see getExtraHWFeatureNames*)
+    HWMask |= ExtraHWMask;
 
     bool changed = true;
     while (changed) {
@@ -377,6 +381,24 @@ static FeatureBitset computeUArchMask(
     return computeMaskFromNames(Arch, Features, Names, "uarch feature");
 }
 
+// Features that are real hardware whether or not the closures in computeHWMask
+// reach them, typically because no LLVM CPU model enables them. The `blacklist`
+// in emitFeatureTable is the inverse, and is applied afterwards.
+static std::vector<StringRef> getExtraHWFeatureNamesRISCV() {
+    return {
+        "ztso",
+    };
+}
+
+static FeatureBitset computeExtraHWMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "riscv64")
+        Names = getExtraHWFeatureNamesRISCV();
+    // x86_64, aarch64, fallback: nothing needed so far.
+    return computeMaskFromNames(Arch, Features, Names, "extra HW feature");
+}
+
 static void emitFeatureTable(raw_ostream &OS,
                               StringRef Arch,
                               ArrayRef<SubtargetFeatureKV> Features,
@@ -384,7 +406,9 @@ static void emitFeatureTable(raw_ostream &OS,
                               unsigned NumWords) {
     FeatureBitset FeatureSetMask = computeFeatureFeatureSetMask(Arch, Features);
     FeatureBitset UArchMask = computeUArchMask(Arch, Features);
-    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, UArchMask);
+    FeatureBitset ExtraHWMask = computeExtraHWMask(Arch, Features);
+    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, UArchMask,
+                                        ExtraHWMask);
     FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
 
     OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";

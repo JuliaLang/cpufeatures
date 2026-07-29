@@ -770,7 +770,7 @@ static const FeatureEntry feature_table[] = {
     { "zksh", "'Zksh' (ShangMi Suite: SM3 Hash Function Instructions)", 162, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zkt", "'Zkt' (Data Independent Execution Latency)", 163, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zmmul", "'Zmmul' (Integer Multiplication)", 164, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "ztso", "'Ztso' (Memory Model - Total Store Order)", 165, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "ztso", "'Ztso' (Memory Model - Total Store Order)", 165, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvbb", "'Zvbb' (Vector basic bit-manipulation instructions)", 166, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x10000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvbc", "'Zvbc' (Vector Carryless Multiplication)", 167, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x200000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zve32f", "'Zve32f' (Vector Extensions for Embedded Processors with maximal 32 EEW and F extension)", 169, 1, 0, 0, 0, { { 0x200000000000ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -813,10 +813,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 348;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x3ee5ed0000000006ULL, 0xfffffdf9eff7fbb7ULL, 0x9a7fffdef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x3ee5ed0000000006ULL, 0xfffffdf9eff7fbb7ULL, 0x9a7ffffef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
-static const FeatureBits llvm_feature_mask = { { 0x5ad0000000006ULL, 0xfffffdf80005c1b7ULL, 0x9a7fffdef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0x5ad0000000006ULL, 0xfffffdf80005c1b7ULL, 0x9a7ffffef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
 
 // Mask of architecture-level uarch features (e.g. v8.4a). Included
 // in the LLVM feature string but ignored for target matching.
