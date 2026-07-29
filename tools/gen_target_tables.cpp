@@ -254,6 +254,19 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
         "ssccptr", "sscofpmf", "sscounterenw", "ssnpm",
         "ssstateen", "ssstrict", "sstc",
         "sstvala", "sstvecd", "ssu64xl", "supm",
+        // Indirect CSR access (Smcsrind/Sscsrind)
+        "smcsrind", "sscsrind",
+        // Double trap (Smdbltrp/Ssdbltrp)
+        "smdbltrp", "ssdbltrp",
+        // Pointer masking, M/S/U configuration bits (Smmpm/Smnpm/Sspm).
+        // "ssnpm" and "supm" are already above.
+        "smmpm", "smnpm", "sspm",
+        // Resumable NMI (Smrnmi)
+        "smrnmi",
+        // State enable (Smstateen)
+        "smstateen",
+        // Control transfer records (Smctr/Ssctr)
+        "smctr", "ssctr",
         // Page-table / virtual-memory features (Sv*)
         "svade", "svbare", "svinval", "svnapot", "svpbmt",
     };
@@ -336,6 +349,11 @@ static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
         "zvks",   // Vector crypto ShangMi.
         "zvksc",  // Vector crypto ShangMi + Zvbc.
         "zvksg",  // Vector crypto ShangMi + Zvkg.
+        "zce",    // Code-size reduction — collection of Zca+Zcb+Zcmp+Zcmt.
+
+        // ISA profiles: named collections of extensions from the RISC-V profiles spec
+        "rvi20u32", "rvi20u64", "rva20s64", "rva20u64", "rva22s64", "rva22u64",
+        "rva23s64", "rva23u64", "rvb23s64", "rvb23u64", "experimental-rvm23u32",
     };
 }
 
