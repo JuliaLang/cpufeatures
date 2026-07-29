@@ -835,6 +835,12 @@ static const HWCapMap hwcap_map[] = {
     // AT_HWCAP3
     {1UL <<  2, 2, "lsfe"},          // HWCAP3_LSFE
     {1UL <<  3, 2, "ls64"},          // HWCAP3_LS64 (FEAT_LS64)
+    {1UL <<  4, 2, "sve-b16mm"},     // HWCAP3_SVE_B16MM
+    {1UL <<  5, 2, "sve2p3"},        // HWCAP3_SVE2P3
+    {1UL <<  7, 2, "sme2p3"},        // HWCAP3_SME2P3
+    {1UL <<  8, 2, "f16mm"},         // HWCAP3_F16MM
+    {1UL <<  9, 2, "f16f32dot"},     // HWCAP3_F16F32DOT
+    {1UL << 10, 2, "f16f32mm"},      // HWCAP3_F16F32MM
     {0, 0, nullptr}
 };
 
@@ -913,9 +919,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // in hwcap_map yet. Move these to the detectable path as the kernel
         // grows bits for them.
         static const char *names[] = {
-            "f16f32dot", "f16f32mm", "f16mm",
-            "mops-go", "mtetc",
-            "sme2p3", "sve-b16mm", "sve2p3",
+            "mops-go", // FEAT_MOPS_GO, "Future Architecture Technologies"
+            "mtetc",   // FEAT_MTETC
             nullptr
         };
         return names;
