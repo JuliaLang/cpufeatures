@@ -34,9 +34,11 @@ static int do_hwprobe(struct riscv_hwprobe *pairs, size_t count) {
 #define RISCV_HWPROBE_KEY_BASE_BEHAVIOR 3
 #define RISCV_HWPROBE_KEY_IMA_EXT_0     4
 #define RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF 9
+#define RISCV_HWPROBE_KEY_MISALIGNED_VECTOR_PERF 10
 
 #define RISCV_HWPROBE_BASE_BEHAVIOR_IMA (1ULL << 0)
 #define RISCV_HWPROBE_MISALIGNED_SCALAR_FAST 3
+#define RISCV_HWPROBE_MISALIGNED_VECTOR_FAST 3
 
 struct HwprobeBitMap { unsigned bit; const char *llvm_name; };
 static const HwprobeBitMap hwprobe_ext_map[] = {
@@ -90,6 +92,21 @@ static const HwprobeBitMap hwprobe_ext_map[] = {
     {46, "zcf"},          // RISCV_HWPROBE_EXT_ZCF
     {47, "zcmop"},        // RISCV_HWPROBE_EXT_ZCMOP
     {48, "zawrs"},        // RISCV_HWPROBE_EXT_ZAWRS
+    // {49, "supm"},      // RISCV_HWPROBE_EXT_SUPM — privileged
+    {50, "zicntr"},       // RISCV_HWPROBE_EXT_ZICNTR
+    {51, "zihpm"},        // RISCV_HWPROBE_EXT_ZIHPM
+    {52, "zfbfmin"},      // RISCV_HWPROBE_EXT_ZFBFMIN
+    {53, "zvfbfmin"},     // RISCV_HWPROBE_EXT_ZVFBFMIN
+    {54, "zvfbfwma"},     // RISCV_HWPROBE_EXT_ZVFBFWMA
+    {55, "zicbom"},       // RISCV_HWPROBE_EXT_ZICBOM
+    {56, "zaamo"},        // RISCV_HWPROBE_EXT_ZAAMO
+    {57, "zalrsc"},       // RISCV_HWPROBE_EXT_ZALRSC
+    {58, "zabha"},        // RISCV_HWPROBE_EXT_ZABHA
+    // {59, "zalasr"},    // RISCV_HWPROBE_EXT_ZALASR — no LLVM feature
+    {60, "zicbop"},       // RISCV_HWPROBE_EXT_ZICBOP
+    {61, "zilsd"},        // RISCV_HWPROBE_EXT_ZILSD
+    {62, "zclsd"},        // RISCV_HWPROBE_EXT_ZCLSD
+    // {63, "experimental-zicfilp"}, // experimental feature
     {0, nullptr}          // sentinel
 };
 
@@ -154,9 +171,6 @@ const std::string &get_host_cpu_name() {
 }
 
 FeatureBits detect_host_features() {
-    // RISC-V has no CPU-table baseline at the LLVM-feature level — even
-    // "i" comes from hwprobe — so features starts empty and any extension
-    // not enumerated by hwprobe ends up in to_disable.
     FeatureBits features{};
     apply_host_baseline(&features);
 
@@ -167,10 +181,11 @@ FeatureBits detect_host_features() {
     struct riscv_hwprobe query[] = {
         {RISCV_HWPROBE_KEY_BASE_BEHAVIOR, 0},
         {RISCV_HWPROBE_KEY_IMA_EXT_0, 0},
-        {RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF, 0}
+        {RISCV_HWPROBE_KEY_MISALIGNED_SCALAR_PERF, 0},
+        {RISCV_HWPROBE_KEY_MISALIGNED_VECTOR_PERF, 0},
     };
 
-    if (do_hwprobe(query, 3) != 0)
+    if (do_hwprobe(query, 4) != 0)
         return features;
 
     unsigned long long base = query[0].value;
@@ -198,6 +213,13 @@ FeatureBits detect_host_features() {
             feature_set(&to_disable, find_feature("unaligned-scalar-mem")->bit);
     }
 
+    if (query[3].key != -1) {
+        if (query[3].value == RISCV_HWPROBE_MISALIGNED_VECTOR_FAST)
+            feature_set(&to_enable, find_feature("unaligned-vector-mem")->bit);
+        else
+            feature_set(&to_disable, find_feature("unaligned-vector-mem")->bit);
+    }
+
     // Enable bits are applied more strongly than disable bits here (they
     // win implications), since Linux frequently adds new bits for implied
     // features in new kernel versions.
@@ -217,12 +239,22 @@ FeatureBits detect_host_features() {
 const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     static const char *empty[] = { nullptr };
     switch (kind) {
-    case HOST_FEATURE_BASELINE:
+    case HOST_FEATURE_BASELINE: {
+#ifdef __linux__
+        static const char *names[] = {
+            "64bit",
+            "zicsr",
+            nullptr
+        };
+        return names;
+#else
         return empty;
+#endif
+    }
     case HOST_FEATURE_DETECTABLE: {
 #ifdef __linux__
-        // +4 slots for i, m, a, unaligned-scalar-mem.
-        constexpr size_t N = sizeof(hwprobe_ext_map) / sizeof(hwprobe_ext_map[0]) + 4;
+        // +5 slots: i, m, a and the two unaligned-*-mem probes.
+        constexpr size_t N = sizeof(hwprobe_ext_map) / sizeof(hwprobe_ext_map[0]) + 5;
         static const auto names = []() {
             std::array<const char *, N> a{};
             size_t n = 0;
@@ -232,6 +264,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             for (const auto *m = hwprobe_ext_map; m->llvm_name; m++)
                 a[n++] = m->llvm_name;
             a[n++] = "unaligned-scalar-mem";
+            a[n++] = "unaligned-vector-mem";
             a[n] = nullptr;
             return a;
         }();
@@ -240,10 +273,64 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         return empty;
 #endif
     }
-    case HOST_FEATURE_IMPLIED:
+    case HOST_FEATURE_IMPLIED: {
+#ifdef __linux__
+        static const char *names[] = {
+            "zmmul", "zvl32b", "zvl64b", "zvl128b",
+            nullptr
+        };
+        return names;
+#else
         return empty;
-    case HOST_FEATURE_UNDETECTABLE:
+#endif
+    }
+    case HOST_FEATURE_UNDETECTABLE: {
+#ifdef __linux__
+        // HW features that riscv_hwprobe cannot report, so they are
+        // never safe to enable from host detection.
+        static const char *names[] = {
+            // vendor extensions: hwprobe reports some of these but
+            // we do not probe them yet
+            "xandesbfhcvt", "xandesperf", "xandesvbfhcvt", "xandesvdot",
+            "xandesvpackfph", "xandesvsinth", "xandesvsintload",
+            "xmipscbop", "xmipscmov", "xmipsexectl", "xmipslsp",
+            "xqccmp", "xqci", "xqcia", "xqciac", "xqcibi", "xqcibm",
+            "xqcicli", "xqcicm", "xqcics", "xqcicsr", "xqciint", "xqciio",
+            "xqcilb", "xqcili", "xqcilia", "xqcilo", "xqcilsm", "xqcisim",
+            "xqcisls", "xqcisync",
+            "xsfmm128t", "xsfmm16t", "xsfmm32a16f", "xsfmm32a32f",
+            "xsfmm32a8f", "xsfmm32a8i", "xsfmm32t", "xsfmm64a64f",
+            "xsfmm64t", "xsfmmbase", "xsfvcp", "xsfvfexp16e", "xsfvfexp32e",
+            "xsfvfexpa", "xsfvfexpa64e", "xsfvfnrclipxfqf",
+            "xsfvfwmaccqqq", "xsfvqmaccdod", "xsfvqmaccqoq",
+            "xsifivecdiscarddlone", "xsifivecflushdlone", "xsmtvdot",
+            "xtheadvdot", "xventanacondops", "xwchc",
+
+            // LLVM-experimental extensions: these require
+            // -menable-experimental-extensions
+            "experimental-zicfilp", "experimental-zicfiss",
+            "experimental-zvbc32e", "experimental-zvfbfa",
+            "experimental-zvfofp8min", "experimental-zvkgs",
+            "experimental-zvqdotq",
+
+            // detected via CSR: not implemented yet
+            "zvl256b", "zvl512b", "zvl1024b", "zvl2048b", "zvl4096b",
+            "zvl8192b", "zvl16384b", "zvl32768b", "zvl65536b",
+
+            // disabled by ABI on Linux
+            "zifencei",
+
+            // no hwprobe bit exists for any of these yet
+            "32bit", "q", "za128rs", "za64rs", "zama16b", "zcmp", "zcmt",
+            "zdinx", "zfinx", "zhinx", "zhinxmin", "zic64b", "ziccamoa",
+            "ziccif", "zicclsm", "ziccrse", "zkr",
+            nullptr
+        };
+        return names;
+#else
         return empty;
+#endif
+    }
     }
     return empty;
 }
