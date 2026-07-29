@@ -43,7 +43,7 @@ jobs:
       - name: Run test under QEMU
         run: qemu-aarch64-static -L /usr/aarch64-linux-gnu build/test_standalone
 
-  # RISC-V 64 Linux build (cross-compiled)
+  # RISC-V 64 Linux build + test (cross-compiled, test via QEMU)
   build-linux-riscv64:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -56,7 +56,7 @@ jobs:
       - name: Build test
         run: make build/test_standalone CXX=riscv64-linux-gnu-g++ ARCH=riscv64
       - name: Run test under QEMU
-        run: qemu-riscv64-static -L /usr/riscv64-linux-gnu build/test_standalone || echo "QEMU test skipped (may need newer QEMU)"
+        run: qemu-riscv64-static -L /usr/riscv64-linux-gnu build/test_standalone
 
   # Windows x86_64 build + test (native, MSYS2 UCRT64)
   build-windows-x86:
