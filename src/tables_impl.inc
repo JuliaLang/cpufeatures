@@ -8,6 +8,11 @@
 
 namespace CROSS_ARCH_NAMESPACE {
 
+// CrossFeatureBits must be able to hold every arch's feature words. If a table
+// regeneration pushes an arch past this, bump MAX_FEATURE_WORDS in cross_arch.h.
+static_assert(TARGET_FEATURE_WORDS <= tp::MAX_FEATURE_WORDS,
+              "TARGET_FEATURE_WORDS exceeds MAX_FEATURE_WORDS");
+
 static const CPUEntry *find_cpu(const char *name) {
     return _find_cpu_exact(resolve_cpu_alias(name));
 }

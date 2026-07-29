@@ -87,23 +87,30 @@ int main() {
     printf("\n--- HW feature detection coverage ---\n");
     {
         tp::FeatureBits detectable{}, baseline{}, undetectable{};
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_DETECTABLE); *p; p++)
-            feature_set(&detectable, tp::find_feature(*p)->bit);
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_BASELINE); *p; p++) {
-            // Belt-and-suspenders: baseline names already vetted by the
-            // sub-section above, but assert is_hw here too (the cheaper
-            // up-front check covers the case where this section runs alone).
-            const tp::FeatureEntry *fe = tp::find_feature(*p);
-            check(fe->is_hw,
-                  (std::string("baseline feature '") + *p +
-                   "' must be is_hw=1").c_str());
-            feature_set(&baseline, fe->bit);
-        }
-        for (const char *const *p =
-                tp::get_host_feature_detection(tp::HOST_FEATURE_UNDETECTABLE); *p; p++)
-            feature_set(&undetectable, tp::find_feature(*p)->bit);
+        // Names are vetted by the sub-section above; re-check for null here so a
+        // name dropped by a table regeneration reports a failure rather than
+        // crashing (which would lose the buffered diagnostics above).
+        auto collect = [&](tp::HostFeatureDetectionKind kind, const char *desc,
+                           tp::FeatureBits *into, bool assert_is_hw = false) {
+            for (const char *const *p = tp::get_host_feature_detection(kind); *p; p++) {
+                const tp::FeatureEntry *fe = tp::find_feature(*p);
+                check(fe != nullptr,
+                      (std::string(desc) + " feature '" + *p +
+                       "' should be in the feature table").c_str());
+                if (!fe) continue;
+                // Belt-and-suspenders: baseline names already vetted by the
+                // sub-section above, but assert is_hw here too (the cheaper
+                // up-front check covers the case where this section runs alone).
+                if (assert_is_hw)
+                    check(fe->is_hw,
+                          (std::string(desc) + " feature '" + *p +
+                           "' must be is_hw=1").c_str());
+                feature_set(into, fe->bit);
+            }
+        };
+        collect(tp::HOST_FEATURE_DETECTABLE,   "detectable",   &detectable);
+        collect(tp::HOST_FEATURE_BASELINE,     "baseline",     &baseline, true);
+        collect(tp::HOST_FEATURE_UNDETECTABLE, "undetectable", &undetectable);
 
         // Any implied detectable HW bit should also be detectable or baseline.
         tp::FeatureBits implied = detectable;
@@ -776,7 +783,11 @@ int main() {
             printf("  %s: %u features, %u CPUs, %u words\n", arch, nf, nc, nw);
             check(nf > 50, "should have >50 features");
             check(nc > 5, "should have >5 CPUs");
-            check(nw >= 4 && nw <= 5, "should have 4 or 5 words");
+            // Derive rather than hardcode, so regenerated tables that add
+            // features don't need this bound edited every time.
+            check(nw == (nf + 63) / 64, "words should cover the feature count");
+            check(nw <= tp::MAX_FEATURE_WORDS,
+                  "words must fit in CrossFeatureBits");
         }
         check(tp::cross_num_features("arm64") == tp::cross_num_features("aarch64"),
               "arm64 should normalize to aarch64");
