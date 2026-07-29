@@ -71,10 +71,10 @@ const std::string &get_host_cpu_name() {
         name = "apple-a18"; break;
     case CPUFAMILY_ARM_HIDRA:
     case CPUFAMILY_ARM_SOTRA:
-        name = "apple-m4"; break; // Rename to apple-m5 once tables are generated from LLVM 22
+        name = "apple-m5"; break;
     case CPUFAMILY_ARM_THERA:
     case CPUFAMILY_ARM_TILOS:
-        name = "apple-a18"; break; // Rename to apple-a19 once tables are generated from LLVM 22
+        name = "apple-a19"; break;
     default:
         name = "apple-m1"; break;
     }
