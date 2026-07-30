@@ -9,13 +9,13 @@
 
 namespace tp {
 
-// Maximum feature words across all architectures (aarch64/riscv = 5, x86 = 4)
-constexpr size_t MAX_FEATURE_WORDS = 5;
+// Maximum feature words across all architectures (aarch64/riscv = 6, x86 = 4)
+constexpr size_t MAX_FEATURE_WORDS = 6;
 
 // Cross-arch query results
 struct CrossFeatureBits {
     uint64_t bits[MAX_FEATURE_WORDS];
-    unsigned num_words;  // actual words used (4 for x86, 5 for aarch64/riscv)
+    unsigned num_words;  // actual words used (4 for x86, 6 for aarch64/riscv)
 };
 
 // Look up a CPU's hardware features by architecture and name.

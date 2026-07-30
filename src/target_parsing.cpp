@@ -149,11 +149,11 @@ std::vector<ResolvedTarget> resolve_targets(
 
 int max_vector_size(const FeatureBits &bits) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_feature(bits, "avx512f")) {
-        if (!find_feature("evex512") || has_feature(bits, "evex512"))
-            return 64;
-        return 32;
-    }
+    // LLVM deprecated 'evex512' into a no-op (kept only to suppress warnings in
+    // old IR): nothing implies it and it no longer gates ZMM, so avx512f alone
+    // means 512-bit vectors.
+    if (has_feature(bits, "avx512f"))
+        return 64;
     if (has_feature(bits, "avx"))
         return 32;
     return 16;

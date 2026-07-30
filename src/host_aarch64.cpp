@@ -71,10 +71,10 @@ const std::string &get_host_cpu_name() {
         name = "apple-a18"; break;
     case CPUFAMILY_ARM_HIDRA:
     case CPUFAMILY_ARM_SOTRA:
-        name = "apple-m4"; break; // Rename to apple-m5 once tables are generated from LLVM 22
+        name = "apple-m5"; break;
     case CPUFAMILY_ARM_THERA:
     case CPUFAMILY_ARM_TILOS:
-        name = "apple-a18"; break; // Rename to apple-a19 once tables are generated from LLVM 22
+        name = "apple-a19"; break;
     default:
         name = "apple-m1"; break;
     }
@@ -232,12 +232,13 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
             "sme-f8f16", "sme-f8f32",
-            "mops",
+            "mops", "mops-go", "mtetc",
+            "f16f32dot", "f16f32mm", "f16mm",
             "f32mm", "f64mm", "f8f16mm", "f8f32mm",
             "fprcvt", "gcs", "lse128", "lsfe", "rcpc3",
-            "sve-f16f32mm", "sve2p1", "sve2p2",
+            "sve-b16mm", "sve-f16f32mm", "sve2p1", "sve2p2", "sve2p3",
             "sme-fa64", "sme-lutv2", "sme-mop4", "sme-tmop",
-            "sme2p2",
+            "sme2p2", "sme2p3",
             "ssve-aes", "ssve-bitperm", "ssve-fexpa",
             "ssve-fp8dot2", "ssve-fp8dot4", "ssve-fp8fma",
 
@@ -352,12 +353,14 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // corresponding IsProcessorFeaturePresent flag.
         static const char *names[] = {
             "altnzcv", "ccdp", "ccpp", "complxnum", "cssc",
-            "dit", "ecv", "f8f16mm", "f8f32mm", "faminmax", "flagm",
+            "dit", "ecv", "f16f32dot", "f16f32mm", "f16mm",
+            "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
             "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lut",
-            "mops", "mte", "rand",
+            "mops", "mops-go", "mte", "mtetc", "rand",
             "rcpc-immo", "rcpc3", "rdm", "sb", "sme-mop4", "sme-tmop",
-            "ssve-fexpa", "sve-f16f32mm", "sve2p2", "wfxt",
+            "sme2p3", "ssve-fexpa", "sve-b16mm", "sve-f16f32mm",
+            "sve2p2", "sve2p3", "wfxt",
             nullptr
         };
         return names;
@@ -832,6 +835,12 @@ static const HWCapMap hwcap_map[] = {
     // AT_HWCAP3
     {1UL <<  2, 2, "lsfe"},          // HWCAP3_LSFE
     {1UL <<  3, 2, "ls64"},          // HWCAP3_LS64 (FEAT_LS64)
+    {1UL <<  4, 2, "sve-b16mm"},     // HWCAP3_SVE_B16MM
+    {1UL <<  5, 2, "sve2p3"},        // HWCAP3_SVE2P3
+    {1UL <<  7, 2, "sme2p3"},        // HWCAP3_SME2P3
+    {1UL <<  8, 2, "f16mm"},         // HWCAP3_F16MM
+    {1UL <<  9, 2, "f16f32dot"},     // HWCAP3_F16F32DOT
+    {1UL << 10, 2, "f16f32mm"},      // HWCAP3_F16F32MM
     {0, 0, nullptr}
 };
 
@@ -906,7 +915,12 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         return names.data();
     }
     case HOST_FEATURE_UNDETECTABLE: {
+        // HW features LLVM knows about for AArch64 that have no HWCAP bit
+        // in hwcap_map yet. Move these to the detectable path as the kernel
+        // grows bits for them.
         static const char *names[] = {
+            "mops-go", // FEAT_MOPS_GO, "Future Architecture Technologies"
+            "mtetc",   // FEAT_MTETC
             nullptr
         };
         return names;

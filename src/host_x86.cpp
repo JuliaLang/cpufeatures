@@ -539,16 +539,13 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
         feature_set(&to_disable, find_feature("xsave")->bit);
         has_avx512_save = false;
     }
-    if (!has_avx512_save) {
+    if (!has_avx512_save)
         feature_set(&to_disable, find_feature("avx512f")->bit);
-        feature_set(&to_disable, find_feature("evex512")->bit);
-    }
     if (!has_amx_save)    feature_set(&to_disable, find_feature("amx-tile")->bit);
     if (!has_aeskle_save) feature_set(&to_disable, find_feature("kl")->bit);
 
-    // AVX-512 implies evex512
-    if (feature_test(&to_enable, find_feature("avx512f")->bit))
-        feature_set(&to_enable, find_feature("evex512")->bit);
+    // 'evex512' needs no handling here: LLVM deprecated it into a no-op that no
+    // CPU implies, so it is not a HW feature and avx512f alone gates ZMM.
 
     apply_feature_delta(&features, to_enable, to_disable);
     return features;
@@ -679,14 +676,14 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
     }
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
-            // AMX extensions detectable at CPUID(0x1E,1).EAX[4..8].
-            "amx-transpose", // removed from architecture
-            "evex512", // pseudo-feature used by LLVM
+            // This list holds only is_hw features with no runtime probe.
+            // Excluded by design: 'evex512' (deprecated LLVM no-op) and 'cf'
+            // (APX opt-in that LLVM enables on no CPU) are both is_hw=0.
 
             // FIXME: Unimplemented detection
             "amx-fp8", "amx-tf32", "amx-avx512", "amx-movrs",
-            "avx10.1-256", "avx10.1-512", "avx10.2-256", "avx10.2-512",
-            "ccmp", "cf", "egpr", "ndd", "nf", "ppx", "push2pop2", "zu",
+            "avx10.1", "avx10.1-512", "avx10.2", "avx10.2-512",
+            "ccmp", "egpr", "ndd", "nf", "ppx", "push2pop2", "zu",
             "lwp", "movrs", "usermsr",
 
             nullptr
