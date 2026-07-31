@@ -614,7 +614,7 @@ static const FeatureEntry feature_table[] = {
     { "sstvala", "'Sstvala' (stval provides all needed values)", 87, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "sstvecd", "'Sstvecd' (stvec supports Direct mode)", 88, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ssu64xl", "'Ssu64xl' (UXLEN=64 supported)", 89, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "supm", "'Supm' (Indicates User-mode Pointer Masking)", 90, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "supm", "'Supm' (Indicates User-mode Pointer Masking)", 90, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "svade", "'Svade' (Raise exceptions on improper A/D bits)", 91, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "svadu", "'Svadu' (Hardware A/D updates)", 92, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "svbare", "'Svbare' (satp mode Bare supported)", 93, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -813,7 +813,7 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 348;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x3ee5ed0000000006ULL, 0xff7ffdf9eff7fbb7ULL, 0x9a7ffffef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3fffff801ULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x3ee5ed0000000006ULL, 0xff7ffdf9ebf7fbb7ULL, 0x9a7ffffef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3fffff801ULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
 static const FeatureBits llvm_feature_mask = { { 0x5ad0000000006ULL, 0xff7ffdf800000000ULL, 0x9a7ffffef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3fffff801ULL, 0x0ULL } };

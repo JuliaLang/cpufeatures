@@ -253,13 +253,13 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
         // Supervisor-mode extensions and profile attributes (Ss*/Su*)
         "ssccptr", "sscofpmf", "sscounterenw", "ssnpm",
         "ssstateen", "ssstrict", "sstc",
-        "sstvala", "sstvecd", "ssu64xl", "supm",
+        "sstvala", "sstvecd", "ssu64xl",
         // Indirect CSR access (Smcsrind/Sscsrind)
         "smcsrind", "sscsrind",
         // Double trap (Smdbltrp/Ssdbltrp)
         "smdbltrp", "ssdbltrp",
-        // Pointer masking, M/S/U configuration bits (Smmpm/Smnpm/Sspm).
-        // "ssnpm" and "supm" are already above.
+        // Pointer masking configuration, M and S levels (Smmpm/Smnpm/Sspm);
+        // "ssnpm" is already above. Supm is user-level, see the blacklist.
         "smmpm", "smnpm", "sspm",
         // Resumable NMI (Smrnmi)
         "smrnmi",
@@ -460,6 +460,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "prfm-slc-target",
         // inline assembly only
         "lor", "ras",
+        // riscv64: describes the execution environment, not the hardware —
+        // "no bearing on hardware implementations" (ISA manual 18.2.7)
+        "supm",
         // incorrectly categorized as a feature in LLVM 21
         // fixed in https://github.com/llvm/llvm-project/pull/152156)
         "use-fixed-over-scalable-if-equal-cost",

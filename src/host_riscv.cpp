@@ -92,7 +92,7 @@ static const HwprobeBitMap hwprobe_ext_map[] = {
     {46, "zcf"},          // RISCV_HWPROBE_EXT_ZCF
     {47, "zcmop"},        // RISCV_HWPROBE_EXT_ZCMOP
     {48, "zawrs"},        // RISCV_HWPROBE_EXT_ZAWRS
-    // {49, "supm"},      // RISCV_HWPROBE_EXT_SUPM — privileged
+    // {49, "supm"},      // RISCV_HWPROBE_EXT_SUPM — does not affect codegen
     {50, "zicntr"},       // RISCV_HWPROBE_EXT_ZICNTR
     {51, "zihpm"},        // RISCV_HWPROBE_EXT_ZIHPM
     {52, "zfbfmin"},      // RISCV_HWPROBE_EXT_ZFBFMIN
