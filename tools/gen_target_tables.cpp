@@ -413,6 +413,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "ssbs", "ssbs2", "predres", "specrestrict", "specres", "specres2",
         // behaves as NOP if unsupported by CPU (HINT / backwards-compatible)
         "pauth", "bti", "clrbhb", "chk", "pauth-lr", "pcdphint",
+        // widens PRFM's operand space only; without it the SLC target still
+        // decodes as a plain prefetch hint
+        "prfm-slc-target",
         // inline assembly only
         "lor", "ras",
         // incorrectly categorized as a feature in LLVM 21

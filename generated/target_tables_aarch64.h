@@ -664,7 +664,7 @@ static const FeatureEntry feature_table[] = {
     { "pops", "Enable Armv9.6-A Point Of Physical Storage (PoPS) DC instructions", 139, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "predictable-select-expensive", "Prefer likely predicted branches over selects", 142, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "predres", "Enable Armv8.5-A execution and data prediction invalidation instructions", 141, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "prfm-slc-target", "Enable SLC target for PRFM instruction", 137, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "prfm-slc-target", "Enable SLC target for PRFM instruction", 137, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rand", "Enable Random Number generation instructions", 151, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ras", "Enable Armv8.0-A Reliability, Availability and Serviceability Extensions", 144, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rasv2", "Enable Armv8.9-A Reliability, Availability and Serviceability Extensions", 145, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x10000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -815,10 +815,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 349;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x8bc0d003d18c100dULL, 0x3bef7eb1c00affdfULL, 0xfffc000000fe8634ULL, 0x700e003ebffd7fULL, 0x0ULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x8bc0d003d18c100dULL, 0x3bef7eb1c00affdfULL, 0xfffc000000fe8434ULL, 0x700e003ebffd7fULL, 0x0ULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
-static const FeatureBits llvm_feature_mask = { { 0x88409003d1041001ULL, 0xbe67ea0c00a7fdfULL, 0xfff4000000bc0204ULL, 0x2000003ebffc3fULL, 0x7ffffULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0x88409003d1041001ULL, 0xbe67ea0c00a7fdfULL, 0xfff4000000bc0004ULL, 0x2000003ebffc3fULL, 0x7ffffULL, 0x0ULL } };
 
 // Mask of architecture-level uarch features (e.g. v8.4a). Included
 // in the LLVM feature string but ignored for target matching.
