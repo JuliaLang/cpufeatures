@@ -156,6 +156,8 @@ int main() {
         check(!feature_intersects(&categorized, &undetectable),
               "baseline/detectable and undetectable must be disjoint");
         feature_or(&categorized, &undetectable);
+        check(!feature_intersects(&categorized, &implied_only),
+              "implied and the other categories must be disjoint");
         feature_or(&categorized, &implied_only);
 
         bool any_missing = false;
