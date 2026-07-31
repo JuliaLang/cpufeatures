@@ -539,7 +539,7 @@ static const FeatureEntry feature_table[] = {
     { "clrbhb", "Enable Clear BHB instruction", 26, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "cmh", "Enable Armv9.7-A Contention Management Hints", 27, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "cmp-bcc-fusion", "CPU fuses cmp+bcc operations", 43, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "cmpbr", "Enable Armv9.6-A base compare and branch instructions", 28, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "cmpbr", "Enable Armv9.6-A base compare and branch instructions", 28, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "complxnum", "Enable Armv8.3-A Floating-point complex number support", 44, 1, 0, 0, 0, { { 0x0ULL, 0x800000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "cortex-a725", "Cortex-A725 ARM processors", 297, 0, 0, 0, 0, { { 0x400080000000002ULL, 0x6900000ULL, 0x5000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "cortex-r82", "Cortex-R82 ARM processors", 334, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x1000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -549,7 +549,7 @@ static const FeatureEntry feature_table[] = {
     { "cortex-x3", "Cortex-X3 ARM processors", 346, 0, 0, 0, 0, { { 0x400000000020002ULL, 0x900000ULL, 0x5000ULL, 0x1000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "cortex-x4", "Cortex-X4 ARM processors", 347, 0, 0, 0, 0, { { 0x400000000020002ULL, 0x6900000ULL, 0x5000ULL, 0x1000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "cortex-x925", "Cortex-X925 ARM processors", 348, 0, 0, 0, 0, { { 0x400000000020002ULL, 0x6900000ULL, 0x5000ULL, 0x1000000000000ULL, 0x0ULL, 0x0ULL } } },
-    { "cpa", "Enable Armv9.5-A Checked Pointer Arithmetic", 30, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "cpa", "Enable Armv9.5-A Checked Pointer Arithmetic", 30, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "crc", "Enable Armv8.0-A CRC-32 checksum instructions", 31, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "crypto", "Enable cryptographic instructions", 45, 0, 1, 0, 0, { { 0x1ULL, 0x800000000000000ULL, 0x10000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "cssc", "Enable Common Short Sequence Compression (CSSC) instructions", 32, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -624,7 +624,7 @@ static const FeatureEntry feature_table[] = {
     { "lse128", "Enable Armv9.4-A 128-bit Atomic instructions", 107, 1, 0, 0, 0, { { 0x0ULL, 0x20000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "lse2", "Enable Armv8.4-A Large System Extension 2 (LSE2) atomicity rules", 106, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "lsfe", "Enable Armv9.6-A base Atomic floating-point in-memory instructions", 108, 1, 0, 0, 0, { { 0x0ULL, 0x1000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "lsui", "Enable Armv9.6-A unprivileged load/store instructions", 109, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "lsui", "Enable Armv9.6-A unprivileged load/store instructions", 109, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "lut", "Enable Lookup Table instructions", 110, 1, 0, 0, 0, { { 0x0ULL, 0x800000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "max-interleave-factor-4", "Set the MaxInterleaveFactor to 4 (from the default 2)", 122, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "mec", "Enable Memory Encryption Contexts Extension", 112, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x400000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -650,7 +650,7 @@ static const FeatureEntry feature_table[] = {
     { "no-sve-fp-ld1r", "Avoid using LD1RX instructions for FP", 128, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "no-zcz-fpr64", "Has no zero-cycle zeroing instructions for FPR64 registers", 129, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "nv", "Enable Armv8.4-A Nested Virtualization Enchancement", 125, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "occmo", "Enable Armv9.6-A Outer cacheable cache maintenance operations", 130, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "occmo", "Enable Armv9.6-A Outer cacheable cache maintenance operations", 130, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "olympus", "NVIDIA Olympus processors", 332, 0, 0, 0, 0, { { 0x400080000000002ULL, 0x400000000900000ULL, 0x5000ULL, 0x1000000000000ULL, 0x0ULL, 0x0ULL } } },
     { "oryon-1", "Nuvia Inc Oryon processors", 333, 0, 0, 0, 0, { { 0x400000000000001ULL, 0xc00000008d81400ULL, 0x70000000001400ULL, 0x40ULL, 0x80ULL, 0x0ULL } } },
     { "outline-atomics", "Enable out of line atomics to support LSE instructions", 131, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -664,7 +664,7 @@ static const FeatureEntry feature_table[] = {
     { "pops", "Enable Armv9.6-A Point Of Physical Storage (PoPS) DC instructions", 139, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "predictable-select-expensive", "Prefer likely predicted branches over selects", 142, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "predres", "Enable Armv8.5-A execution and data prediction invalidation instructions", 141, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "prfm-slc-target", "Enable SLC target for PRFM instruction", 137, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "prfm-slc-target", "Enable SLC target for PRFM instruction", 137, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rand", "Enable Random Number generation instructions", 151, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "ras", "Enable Armv8.0-A Reliability, Availability and Serviceability Extensions", 144, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "rasv2", "Enable Armv8.9-A Reliability, Availability and Serviceability Extensions", 145, 1, 0, 0, 1, { { 0x0ULL, 0x0ULL, 0x10000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -815,10 +815,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 349;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x8bc0d003818c100dULL, 0x3bef5eb1c00affdfULL, 0xfffc000000fe8430ULL, 0x700e003ebffd7fULL, 0x0ULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x8bc0d003d18c100dULL, 0x3bef7eb1c00affdfULL, 0xfffc000000fe8634ULL, 0x700e003ebffd7fULL, 0x0ULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
-static const FeatureBits llvm_feature_mask = { { 0x8840900381041001ULL, 0xbe65ea0c00a7fdfULL, 0xfff4000000bc0000ULL, 0x2000003ebffc3fULL, 0x7ffffULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0x88409003d1041001ULL, 0xbe67ea0c00a7fdfULL, 0xfff4000000bc0204ULL, 0x2000003ebffc3fULL, 0x7ffffULL, 0x0ULL } };
 
 // Mask of architecture-level uarch features (e.g. v8.4a). Included
 // in the LLVM feature string but ignored for target matching.

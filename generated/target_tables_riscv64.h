@@ -468,7 +468,7 @@ static const FeatureEntry feature_table[] = {
     { "andes45", "Andes 45-Series processors", 306, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "auipc-addi-fusion", "Enable AUIPC+ADDI macrofusion", 304, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "auipc-load-fusion", "Enable AUIPC + load macrofusion", 305, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "b", "'B' (the collection of the Zba, Zbb, Zbs extensions)", 41, 1, 1, 0, 0, { { 0x0ULL, 0x8600000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "b", "'B' (the collection of the Zba, Zbb, Zbs extensions)", 41, 0, 1, 0, 0, { { 0x0ULL, 0x8600000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "bfext-fusion", "Enable SLLI+SRLI (bitfield extract) macrofusion", 307, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "c", "'C' (Compressed Instructions)", 42, 1, 0, 0, 0, { { 0x0ULL, 0x10000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "conditional-cmv-fusion", "Enable branch+c.mv fusion", 308, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -760,12 +760,12 @@ static const FeatureEntry feature_table[] = {
     { "zilsd-4byte-align", "Allow 4-byte alignment for Zilsd LD/SD instructions", 290, 0, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zimop", "'Zimop' (May-Be-Operations)", 153, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zk", "'Zk' (Standard scalar cryptography extension)", 154, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x888000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zkn", "'Zkn' (NIST Algorithm Suite)", 155, 1, 1, 0, 0, { { 0x0ULL, 0x7000000000000ULL, 0x70000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zkn", "'Zkn' (NIST Algorithm Suite)", 155, 0, 1, 0, 0, { { 0x0ULL, 0x7000000000000ULL, 0x70000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zknd", "'Zknd' (NIST Suite: AES Decryption)", 156, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zkne", "'Zkne' (NIST Suite: AES Encryption)", 157, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zknh", "'Zknh' (NIST Suite: Hash Function Instructions)", 158, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zkr", "'Zkr' (Entropy Source Extension)", 159, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zks", "'Zks' (ShangMi Algorithm Suite)", 160, 1, 1, 0, 0, { { 0x0ULL, 0x7000000000000ULL, 0x600000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zks", "'Zks' (ShangMi Algorithm Suite)", 160, 0, 1, 0, 0, { { 0x0ULL, 0x7000000000000ULL, 0x600000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zksed", "'Zksed' (ShangMi Suite: SM4 Block Cipher Instructions)", 161, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zksh", "'Zksh' (ShangMi Suite: SM3 Hash Function Instructions)", 162, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zkt", "'Zkt' (Data Independent Execution Latency)", 163, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
@@ -784,16 +784,16 @@ static const FeatureEntry feature_table[] = {
     { "zvfhmin", "'Zvfhmin' (Vector Half-Precision Floating-Point Minimal)", 178, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x20000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvkb", "'Zvkb' (Vector Bit-manipulation used in Cryptography)", 180, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvkg", "'Zvkg' (Vector GCM instructions for Cryptography)", 181, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zvkn", "'Zvkn' (shorthand for 'Zvkned', 'Zvknhb', 'Zvkb', and 'Zvkt')", 183, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x1210000000000000ULL, 0x4ULL, 0x0ULL, 0x0ULL } } },
-    { "zvknc", "'Zvknc' (shorthand for 'Zvknc' and 'Zvbc')", 184, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x80008000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zvkn", "'Zvkn' (shorthand for 'Zvkned', 'Zvknhb', 'Zvkb', and 'Zvkt')", 183, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x1210000000000000ULL, 0x4ULL, 0x0ULL, 0x0ULL } } },
+    { "zvknc", "'Zvknc' (shorthand for 'Zvknc' and 'Zvbc')", 184, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x80008000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvkned", "'Zvkned' (Vector AES Encryption & Decryption (Single Round))", 185, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zvkng", "'Zvkng' (shorthand for 'Zvkn' and 'Zvkg')", 186, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0xa0000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zvkng", "'Zvkng' (shorthand for 'Zvkn' and 'Zvkg')", 186, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0xa0000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvknha", "'Zvknha' (Vector SHA-2 (SHA-256 only))", 187, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvknhb", "'Zvknhb' (Vector SHA-2 (SHA-256 and SHA-512))", 188, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x200000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zvks", "'Zvks' (shorthand for 'Zvksed', 'Zvksh', 'Zvkb', and 'Zvkt')", 189, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x8010000000000000ULL, 0x6ULL, 0x0ULL, 0x0ULL } } },
-    { "zvksc", "'Zvksc' (shorthand for 'Zvks' and 'Zvbc')", 190, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x2000008000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zvks", "'Zvks' (shorthand for 'Zvksed', 'Zvksh', 'Zvkb', and 'Zvkt')", 189, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x8010000000000000ULL, 0x6ULL, 0x0ULL, 0x0ULL } } },
+    { "zvksc", "'Zvksc' (shorthand for 'Zvks' and 'Zvbc')", 190, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x2000008000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvksed", "'Zvksed' (SM4 Block Cipher Instructions)", 191, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
-    { "zvksg", "'Zvksg' (shorthand for 'Zvks' and 'Zvkg')", 192, 1, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x2020000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
+    { "zvksg", "'Zvksg' (shorthand for 'Zvks' and 'Zvkg')", 192, 0, 1, 0, 0, { { 0x0ULL, 0x0ULL, 0x2020000000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvksh", "'Zvksh' (SM3 Hash Function Instructions)", 193, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x40000000000ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvkt", "'Zvkt' (Vector Data-Independent Execution Latency)", 194, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL, 0x0ULL } } },
     { "zvl1024b", "'Zvl1024b' (Minimum Vector Length 1024)", 200, 1, 0, 0, 0, { { 0x0ULL, 0x0ULL, 0x0ULL, 0x80ULL, 0x0ULL, 0x0ULL } } },
@@ -813,10 +813,10 @@ static const FeatureEntry feature_table[] = {
 static const unsigned num_features = 348;
 
 // Precomputed mask of hardware (CPUID-detectable) features
-static const FeatureBits hw_feature_mask = { { 0x3ee5ef0000000006ULL, 0xfffffdf9eff7fbb7ULL, 0xffffffdffbfff7dfULL, 0xffaffc9e03feffffULL, 0x3ffbfffff801ULL, 0x0ULL } };
+static const FeatureBits hw_feature_mask = { { 0x3ee5ed0000000006ULL, 0xfffffdf9eff7fbb7ULL, 0x9a7fffdef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
 
 // Codegen-relevant bits: HW features + uarch hints, non-privileged.
-static const FeatureBits llvm_feature_mask = { { 0x5af0000000006ULL, 0xfffffdf80005c1b7ULL, 0xffffffdffbfff7dfULL, 0xffaffc9e03feffffULL, 0x3ffbfffff801ULL, 0x0ULL } };
+static const FeatureBits llvm_feature_mask = { { 0x5ad0000000006ULL, 0xfffffdf80005c1b7ULL, 0x9a7fffdef3fff7dfULL, 0xffaffc9e03fefffeULL, 0x3ffbfffff801ULL, 0x0ULL } };
 
 // Mask of architecture-level uarch features (e.g. v8.4a). Included
 // in the LLVM feature string but ignored for target matching.
