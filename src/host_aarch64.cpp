@@ -222,6 +222,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
+    case HOST_FEATURE_IMPLIED:
+        return empty;
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
             // Never present on Apple Silicon.
@@ -352,6 +354,12 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             return a;
         }();
         return names.data();
+    }
+    case HOST_FEATURE_IMPLIED: {
+        // The PF flags probe features that require these, but no flag
+        // exposes them directly; entailment from the probe covers them.
+        static const char *names[] = { "fp8", "sm4", nullptr };
+        return names;
     }
     case HOST_FEATURE_UNDETECTABLE: {
         // HW features LLVM knows about for AArch64 that have no
@@ -920,6 +928,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
+    case HOST_FEATURE_IMPLIED:
+        return empty;
     case HOST_FEATURE_UNDETECTABLE: {
         // HW features LLVM knows about for AArch64 that have no HWCAP bit
         // in hwcap_map yet. Move these to the detectable path as the kernel
