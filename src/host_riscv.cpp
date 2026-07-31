@@ -197,6 +197,17 @@ FeatureBits detect_host_features() {
         else
             feature_set(&to_disable, find_feature("unaligned-scalar-mem")->bit);
     }
+
+    // Enable bits are applied more strongly than disable bits here (they
+    // win implications), since Linux frequently adds new bits for implied
+    // features in new kernel versions.
+    //
+    // If disable bits were made to win entailments instead (the default
+    // behavior), on older kernels we'd incorrectly disable bits whose
+    // implied features had probes added in later versions.
+    FeatureBits entailed = to_enable;
+    _expand_entailed_enable_bits(&entailed);
+    feature_andnot(&to_disable, &to_disable, &entailed);
 #endif
 
     apply_feature_delta(&features, to_enable, to_disable);
