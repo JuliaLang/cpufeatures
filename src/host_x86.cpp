@@ -674,6 +674,8 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         }();
         return names.data();
     }
+    case HOST_FEATURE_IMPLIED:
+        return empty;
     case HOST_FEATURE_UNDETECTABLE: {
         static const char *names[] = {
             // This list holds only is_hw features with no runtime probe.

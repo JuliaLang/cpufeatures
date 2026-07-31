@@ -69,6 +69,7 @@ The test enforces that every hardware feature (`is_hw=1`, `is_featureset=0`, `is
 - **baseline** — always present, mandated by the platform ABI (e.g. `neon` on Windows AArch64)
 - **detectable** — has a runtime probe implemented in the host file
 - **undetectable** — exists in LLVM but has no runtime probe; unsafe to enable without explicit opt-in
+- **implied** — no probe of its own but entailed by detectable feature(s)
 - **featureset** — groups other features with no probe of its own (handled by the generator; skipped by the test)
 
 When new features appear after an LLVM upgrade, the test will print:

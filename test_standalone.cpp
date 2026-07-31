@@ -81,12 +81,13 @@ int main() {
         check_list(tp::HOST_FEATURE_DETECTABLE,   "detectable");
         check_list(tp::HOST_FEATURE_BASELINE,     "baseline");
         check_list(tp::HOST_FEATURE_UNDETECTABLE, "undetectable");
+        check_list(tp::HOST_FEATURE_IMPLIED,      "implied");
         printf("  OK\n");
     }
 
     printf("\n--- HW feature detection coverage ---\n");
     {
-        tp::FeatureBits detectable{}, baseline{}, undetectable{};
+        tp::FeatureBits detectable{}, baseline{}, undetectable{}, implied_only{};
         // Names are vetted by the sub-section above; re-check for null here so a
         // name dropped by a table regeneration reports a failure rather than
         // crashing (which would lose the buffered diagnostics above).
@@ -111,6 +112,7 @@ int main() {
         collect(tp::HOST_FEATURE_DETECTABLE,   "detectable",   &detectable);
         collect(tp::HOST_FEATURE_BASELINE,     "baseline",     &baseline, true);
         collect(tp::HOST_FEATURE_UNDETECTABLE, "undetectable", &undetectable);
+        collect(tp::HOST_FEATURE_IMPLIED,      "implied",      &implied_only);
 
         // Any implied detectable HW bit should also be detectable or baseline.
         tp::FeatureBits implied = detectable;
@@ -119,13 +121,8 @@ int main() {
             const tp::FeatureEntry *fe = &tp::feature_table[i];
             if (tp::feature_test(&implied, fe->bit) &&
                 !tp::feature_test(&detectable, fe->bit) &&
-                !tp::feature_test(&baseline, fe->bit)) {
-#if defined(_WIN32) && defined(__aarch64__)
-                // Windows AArch64 PF flags probe features that require fp8/sm4
-                // but no PF flag exposes those base features directly.
-                if (strcmp(fe->name, "fp8") == 0 || strcmp(fe->name, "sm4") == 0)
-                    continue;
-#endif
+                !tp::feature_test(&baseline, fe->bit) &&
+                !tp::feature_test(&implied_only, fe->bit)) {
 #if defined(__aarch64__)
                 if (strcmp(fe->name, "chk") == 0) // chk does not need to be detected (in our blacklist)
                     continue;
@@ -136,8 +133,21 @@ int main() {
             }
         }
 
+        // A name is only allowed in the implied list if something detectable
+        // actually implies it — otherwise it is simply uncovered.
+        tp::FeatureBits reachable = detectable;
+        _expand_entailed_enable_bits(&reachable);
+        for (unsigned i = 0; i < tp::num_features; i++) {
+            const tp::FeatureEntry *fe = &tp::feature_table[i];
+            if (tp::feature_test(&implied_only, fe->bit) &&
+                !tp::feature_test(&reachable, fe->bit))
+                check(false, (std::string("'") + fe->name +
+                              "' is listed as implied, but nothing detectable "
+                              "implies it").c_str());
+        }
+
         // Every non-featureset HW bit must be in exactly one of
-        // baseline / detectable / undetectable.
+        // baseline / detectable / undetectable / implied.
         tp::FeatureBits categorized{};
         check(!feature_intersects(&detectable, &baseline),
               "baseline and detectable must be disjoint");
@@ -146,6 +156,7 @@ int main() {
         check(!feature_intersects(&categorized, &undetectable),
               "baseline/detectable and undetectable must be disjoint");
         feature_or(&categorized, &undetectable);
+        feature_or(&categorized, &implied_only);
 
         bool any_missing = false;
         for (unsigned i = 0; i < tp::num_features; i++) {
@@ -153,11 +164,6 @@ int main() {
             if (tp::feature_table[i].is_featureset) continue;
             if (tp::feature_table[i].is_privileged) continue;
             if (!tp::feature_test(&categorized, tp::feature_table[i].bit)) {
-#if defined(_WIN32) && defined(__aarch64__)
-                if (strcmp(tp::feature_table[i].name, "fp8") == 0 ||
-                    strcmp(tp::feature_table[i].name, "sm4") == 0)
-                    continue;
-#endif
                 check(false, (std::string("HW feature '") +
                               tp::feature_table[i].name +
                               "' is unhandled").c_str());
@@ -169,6 +175,7 @@ int main() {
                    "      - baseline      (always present)\n"
                    "      - detectable    (has a runtime probe)\n"
                    "      - undetectable  (no runtime probe, unsafe to enable)\n"
+                   "      - implied       (entailed by a detectable feature)\n"
                    "      - featureset    (only groups other features)\n");
         }
         printf("  %s\n", any_missing ? "FAILED" : "OK");

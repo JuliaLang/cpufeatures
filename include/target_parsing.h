@@ -187,6 +187,9 @@ enum HostFeatureDetectionKind {
     // Features the host can probe at runtime.
     HOST_FEATURE_DETECTABLE,
 
+    // Features with no probe of their own, but implied by DETECTABLE feature(s).
+    HOST_FEATURE_IMPLIED,
+
     // Features mandated by the ABI / platform spec.
     // Always present and never probed for at runtime.
     HOST_FEATURE_BASELINE,
