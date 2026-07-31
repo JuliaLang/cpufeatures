@@ -77,6 +77,7 @@ struct ResolveOptions {
     const FeatureBits *host_features = nullptr; // nullptr = auto-detect
     const char *host_cpu = nullptr;             // nullptr = auto-detect
     bool strip_nondeterministic = true;         // strip rdrnd/rdseed/rtm/xsaveopt (x86)
+    bool mask_undetectable = true;              // drop CPU defaults with no runtime probe
 };
 
 // ============================================================================
@@ -127,7 +128,8 @@ std::vector<ParsedTarget> parse_target_string(std::string_view target_str);
 std::vector<ResolvedTarget> resolve_targets(
     const std::vector<ParsedTarget> &parsed,
     const FeatureBits *host_features = nullptr,
-    const char *host_cpu = nullptr);
+    const char *host_cpu = nullptr,
+    bool mask_undetectable = true);
 
 // Build a raw feature diff string (for debug, not filtered for LLVM)
 std::string build_feature_string(const FeatureBits &features,
@@ -214,6 +216,14 @@ void apply_feature_delta(FeatureBits *features,
 
 // Enable all HOST_FEATURE_BASELINE bits in `features`.
 void apply_host_baseline(FeatureBits *features);
+
+// Restrict `features` to a "self-supporting" subset of runtime-supported
+// features.
+//
+// Features that are UNDETECTABLE or that have no dedicated runtime probe
+// (detectable only by implication) are removed if no bit in `features`
+// can possibly entail them.
+void apply_detectable_features_mask(FeatureBits *features);
 
 // Copy uarch features (e.g. +v8.4a) from the detected host CPU's table
 // entry into `features`, after verifying any required features are present.

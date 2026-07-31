@@ -397,7 +397,7 @@ static void emitFeatureTable(raw_ostream &OS,
     OS << "    unsigned char is_featureset; // 1 = architecture-level umbrella (v8.1a, RISC-V B)\n";
     OS << "    unsigned char is_uarch;      // 1 = architecture-level uarch hint (v8.1a, v9.2a)\n";
     OS << "    unsigned char is_privileged; // 1 = EL2/EL3/ring-0 only, no user-space codegen\n";
-    OS << "    FeatureBits implies;         // transitively implied features\n";
+    OS << "    FeatureBits implies;         // directly implied features\n";
     OS << "} FeatureEntry;\n\n";
 
     // Exclude features that shouldn't affect sysimage target matching.

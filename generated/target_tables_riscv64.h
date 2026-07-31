@@ -456,7 +456,7 @@ typedef struct {
     unsigned char is_featureset; // 1 = architecture-level umbrella (v8.1a, RISC-V B)
     unsigned char is_uarch;      // 1 = architecture-level uarch hint (v8.1a, v9.2a)
     unsigned char is_privileged; // 1 = EL2/EL3/ring-0 only, no user-space codegen
-    FeatureBits implies;         // transitively implied features
+    FeatureBits implies;         // directly implied features
 } FeatureEntry;
 
 static const FeatureEntry feature_table[] = {
