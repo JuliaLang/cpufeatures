@@ -95,6 +95,18 @@ This documents the gap explicitly and makes the feature unavailable for runtime 
 
 **Baseline** — if the feature is guaranteed present by the platform ABI on a specific OS (without needing a probe), add it to `HOST_FEATURE_BASELINE` for that platform instead.
 
+#### When a real HW feature is not marked `is_hw`
+
+The test also checks the converse — every name in a host file's baseline / detectable / undetectable list must be `is_hw=1`:
+
+```
+FAIL: detectable feature '<name>' should be is_hw=1
+```
+
+The generator infers `is_hw` from the CPU-implication closure, so a feature the closure never reaches — typically one that no LLVM CPU model enables — comes out `is_hw=0` even when it is
+real hardware (e.g. RISC-V `ztso`, which Linux reports via `riscv_hwprobe`). If the feature really is hardware, add it to `getExtraHWFeatureNames<Arch>` in `tools/gen_target_tables.cpp` and regenerate.
+If it is a tuning hint or a mode bit instead, it should not be in a host detection list at all (and may belong in the generator's `blacklist`).
+
 #### Runtime probe references by architecture
 
 **x86 / x86_64** (`src/host_x86.cpp`)

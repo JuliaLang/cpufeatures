@@ -156,6 +156,8 @@ int main() {
         check(!feature_intersects(&categorized, &undetectable),
               "baseline/detectable and undetectable must be disjoint");
         feature_or(&categorized, &undetectable);
+        check(!feature_intersects(&categorized, &implied_only),
+              "implied and the other categories must be disjoint");
         feature_or(&categorized, &implied_only);
 
         bool any_missing = false;
@@ -192,7 +194,7 @@ int main() {
     const char *baseline_cpu = "cortex-a57";
   #endif
 #elif defined(__riscv) && __riscv_xlen == 64
-    const char *baseline_cpu = "sifive-u74";
+    const char *baseline_cpu = "generic-rv64";
 #else
     const char *baseline_cpu = nullptr;
 #endif

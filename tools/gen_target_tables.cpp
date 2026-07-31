@@ -161,13 +161,17 @@ static void emitFeatureBits(raw_ostream &OS, const FeatureBitset &Bits, unsigned
 static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
                                     ArrayRef<SubtargetSubTypeKV> CPUs,
                                     const FeatureBitset &FeatureSetMask,
-                                    const FeatureBitset &UArchMask) {
+                                    const FeatureBitset &UArchMask,
+                                    const FeatureBitset &ExtraHWMask) {
     FeatureBitset HWMask;
     FeatureBitset TuneImplied;
     for (const auto &CPU : CPUs) {
         HWMask      |= CPU.Implies.getAsBitset();
         TuneImplied |= CPU.TuneImplies.getAsBitset();
     }
+    // Seed the closures with features known to be real hardware
+    // (see getExtraHWFeatureNames*)
+    HWMask |= ExtraHWMask;
 
     bool changed = true;
     while (changed) {
@@ -249,7 +253,20 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
         // Supervisor-mode extensions and profile attributes (Ss*/Su*)
         "ssccptr", "sscofpmf", "sscounterenw", "ssnpm",
         "ssstateen", "ssstrict", "sstc",
-        "sstvala", "sstvecd", "ssu64xl", "supm",
+        "sstvala", "sstvecd", "ssu64xl",
+        // Indirect CSR access (Smcsrind/Sscsrind)
+        "smcsrind", "sscsrind",
+        // Double trap (Smdbltrp/Ssdbltrp)
+        "smdbltrp", "ssdbltrp",
+        // Pointer masking configuration, M and S levels (Smmpm/Smnpm/Sspm);
+        // "ssnpm" is already above. Supm is user-level, see the blacklist.
+        "smmpm", "smnpm", "sspm",
+        // Resumable NMI (Smrnmi)
+        "smrnmi",
+        // State enable (Smstateen)
+        "smstateen",
+        // Control transfer records (Smctr/Ssctr)
+        "smctr", "ssctr",
         // Page-table / virtual-memory features (Sv*)
         "svade", "svbare", "svinval", "svnapot", "svpbmt",
     };
@@ -332,6 +349,11 @@ static std::vector<StringRef> getFeatureCollectionNamesRISCV() {
         "zvks",   // Vector crypto ShangMi.
         "zvksc",  // Vector crypto ShangMi + Zvbc.
         "zvksg",  // Vector crypto ShangMi + Zvkg.
+        "zce",    // Code-size reduction — collection of Zca+Zcb+Zcmp+Zcmt.
+
+        // ISA profiles: named collections of extensions from the RISC-V profiles spec
+        "rvi20u32", "rvi20u64", "rva20s64", "rva20u64", "rva22s64", "rva22u64",
+        "rva23s64", "rva23u64", "rvb23s64", "rvb23u64", "experimental-rvm23u32",
     };
 }
 
@@ -377,6 +399,24 @@ static FeatureBitset computeUArchMask(
     return computeMaskFromNames(Arch, Features, Names, "uarch feature");
 }
 
+// Features that are real hardware whether or not the closures in computeHWMask
+// reach them, typically because no LLVM CPU model enables them. The `blacklist`
+// in emitFeatureTable is the inverse, and is applied afterwards.
+static std::vector<StringRef> getExtraHWFeatureNamesRISCV() {
+    return {
+        "ztso",
+    };
+}
+
+static FeatureBitset computeExtraHWMask(
+        StringRef Arch, ArrayRef<SubtargetFeatureKV> Features) {
+    std::vector<StringRef> Names;
+    if (Arch == "riscv64")
+        Names = getExtraHWFeatureNamesRISCV();
+    // x86_64, aarch64, fallback: nothing needed so far.
+    return computeMaskFromNames(Arch, Features, Names, "extra HW feature");
+}
+
 static void emitFeatureTable(raw_ostream &OS,
                               StringRef Arch,
                               ArrayRef<SubtargetFeatureKV> Features,
@@ -384,7 +424,9 @@ static void emitFeatureTable(raw_ostream &OS,
                               unsigned NumWords) {
     FeatureBitset FeatureSetMask = computeFeatureFeatureSetMask(Arch, Features);
     FeatureBitset UArchMask = computeUArchMask(Arch, Features);
-    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, UArchMask);
+    FeatureBitset ExtraHWMask = computeExtraHWMask(Arch, Features);
+    FeatureBitset HWMask = computeHWMask(Features, CPUs, FeatureSetMask, UArchMask,
+                                        ExtraHWMask);
     FeatureBitset PrivilegedMask = computePrivilegedMask(Arch, Features);
 
     OS << "// Feature table: name, description, bit index, is_hw, is_featureset,\n";
@@ -418,6 +460,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "prfm-slc-target",
         // inline assembly only
         "lor", "ras",
+        // riscv64: describes the execution environment, not the hardware —
+        // "no bearing on hardware implementations" (ISA manual 18.2.7)
+        "supm",
         // incorrectly categorized as a feature in LLVM 21
         // fixed in https://github.com/llvm/llvm-project/pull/152156)
         "use-fixed-over-scalable-if-equal-cost",
