@@ -229,6 +229,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sve2", "sve-sha3", "sve-sm4",
             "rand", "sm4",
             // No runtime probe support available yet.
+            "cmpbr", "cpa", "lsui", "occmo",
             "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
             "sme-f8f16", "sme-f8f32",
@@ -356,12 +357,12 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // HW features LLVM knows about for AArch64 that have no
         // corresponding IsProcessorFeaturePresent flag.
         static const char *names[] = {
-            "altnzcv", "ccdp", "ccpp", "complxnum", "cssc",
+            "altnzcv", "ccdp", "ccpp", "cmpbr", "complxnum", "cpa", "cssc",
             "dit", "ecv", "f16f32dot", "f16f32mm", "f16mm",
             "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
-            "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lut",
-            "mops", "mops-go", "mte", "mtetc", "rand",
+            "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lsui", "lut",
+            "mops", "mops-go", "mte", "mtetc", "occmo", "rand",
             "rcpc-immo", "rcpc3", "sb", "sme-mop4", "sme-tmop",
             "sme2p3", "ssve-fexpa", "sve-b16mm", "sve-f16f32mm",
             "sve2p2", "sve2p3", "wfxt",
@@ -779,6 +780,7 @@ static const HWCapMap hwcap_map[] = {
     {1UL << 29, 0, "sb"},            // HWCAP_SB
     // {1UL << 30, 0, "pauth"},      // HWCAP_PACA
     {1UL << 32, 0, "gcs"},           // HWCAP_GCS
+    {1UL << 33, 0, "cmpbr"},         // HWCAP_CMPBR
     {1UL << 34, 0, "fprcvt"},        // HWCAP_FPRCVT
     {1UL << 35, 0, "f8f32mm"},       // HWCAP_F8MM8
     {1UL << 36, 0, "f8f16mm"},       // HWCAP_F8MM4
@@ -923,8 +925,11 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // in hwcap_map yet. Move these to the detectable path as the kernel
         // grows bits for them.
         static const char *names[] = {
+            "cpa",     // FEAT_CPA
+            "lsui",    // FEAT_LSUI, kernel keeps the ID field FTR_HIDDEN
             "mops-go", // FEAT_MOPS_GO, "Future Architecture Technologies"
             "mtetc",   // FEAT_MTETC
+            "occmo",   // FEAT_OCCMO
             nullptr
         };
         return names;

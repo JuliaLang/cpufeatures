@@ -180,12 +180,10 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
                 HWMask |= F.Implies.getAsBitset();
                 if (HWMask != before) changed = true;
             } else {
-                if (TuneImplied.test(F.Value)) continue;
-                if (FeatureSetMask.test(F.Value)) continue;
-                if (UArchMask.test(F.Value)) continue;
+                if (TuneImplied.test(F.Value)) continue; // Implies tuning-only bits
                 // Apply reverse closure to HW bits (anything that requires a HW
-                // feature is a HW feature, except for featureset/uarch bits and
-                // any 'features' implied via tuning)
+                // feature is a HW feature or an umbrella that leads to one:
+                // featureset / uarch bits are filtered below)
                 if ((F.Implies.getAsBitset() & HWMask).any()) {
                     HWMask.set(F.Value);
                     changed = true;
@@ -196,6 +194,8 @@ static FeatureBitset computeHWMask(ArrayRef<SubtargetFeatureKV> Features,
 
     // Effectively tuning flags
     HWMask &= ~UArchMask;
+    // Covered by dedicated feature bits
+    HWMask &= ~FeatureSetMask;
 
     return HWMask;
 }
@@ -413,6 +413,9 @@ static void emitFeatureTable(raw_ostream &OS,
         "ssbs", "ssbs2", "predres", "specrestrict", "specres", "specres2",
         // behaves as NOP if unsupported by CPU (HINT / backwards-compatible)
         "pauth", "bti", "clrbhb", "chk", "pauth-lr", "pcdphint",
+        // widens PRFM's operand space only; without it the SLC target still
+        // decodes as a plain prefetch hint
+        "prfm-slc-target",
         // inline assembly only
         "lor", "ras",
         // incorrectly categorized as a feature in LLVM 21
