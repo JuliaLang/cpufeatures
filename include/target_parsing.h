@@ -120,7 +120,8 @@ void print_cpu_targets();
 // Low-level API (building blocks)
 // ============================================================================
 
-// Parse a target string like "haswell;skylake,+avx512f,-sse4a"
+// Parse a target string like "haswell;skylake,avx512f,-sse4a". Feature names
+// without a '+' or '-' prefix are enabled.
 std::vector<ParsedTarget> parse_target_string(std::string_view target_str);
 
 // Resolve parsed targets against the CPU/feature database

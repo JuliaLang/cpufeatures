@@ -264,6 +264,20 @@ int main() {
             check(parsed[0].cpu_name == "pentium4", "i686 CI parse: spec[0] should be pentium4");
     }
     {
+        // RISC-V target from Julia's build documentation. Julia's historical
+        // parser treats bare feature names as enabled.
+        auto parsed = tp::parse_target_string("generic-rv64,i,m,a,f,d,zicsr,zifencei,c");
+        check(parsed.size() == 1, "riscv64 parse: should parse 1 target");
+        if (parsed.size() == 1) {
+            check(parsed[0].cpu_name == "generic-rv64", "riscv64 parse: spec[0] should be generic-rv64");
+            const std::vector<std::string> expected = {
+                "+i", "+m", "+a", "+f", "+d", "+zicsr", "+zifencei", "+c"
+            };
+            check(parsed[0].extra_features == expected,
+                  "riscv64 parse: bare features should be enabled");
+        }
+    }
+    {
         // aarch64 macOS
         auto parsed = tp::parse_target_string("generic;apple-m1,clone_all");
         check(parsed.size() == 2, "aarch64 mac CI parse: should parse 2 targets");
@@ -723,7 +737,15 @@ int main() {
 
         // resolve_targets_for_llvm — explicit CPU names, no host needed.
         {
-            auto specs = tp::resolve_targets_for_llvm("sifive-u74;sifive-u74,clone_all");
+            auto documented = tp::resolve_targets_for_llvm(
+                "generic-rv64,i,m,a,f,d,zicsr,zifencei,c");
+            check(documented.size() == 1, "documented RISC-V target should produce 1 spec");
+            if (documented.size() == 1)
+                check(tp::has_feature(documented[0].en_features, "d"),
+                      "documented RISC-V target should enable d");
+
+            auto specs = tp::resolve_targets_for_llvm(
+                "sifive-u74;sifive-u74,clone_all");
             check(specs.size() == 2, "should produce 2 specs");
             if (specs.size() == 2) {
                 tp::FeatureBits combined;
