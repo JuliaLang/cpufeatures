@@ -199,6 +199,7 @@ FeatureBits detect_host_features() {
         // the family is unrecognized).
         if (const CPUEntry *cpu = find_cpu(get_host_cpu_name().c_str()))
             feature_or(&features, &cpu->features);
+        apply_detectable_features_mask(&features);
     }
     return features;
 }

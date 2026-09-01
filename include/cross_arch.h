@@ -21,6 +21,9 @@ struct CrossFeatureBits {
 // Look up a CPU's hardware features by architecture and name.
 // Returns true if found, false otherwise.
 // features_out is zeroed and filled with hw-masked features.
+//
+// Unlike `resolve_targets_for_llvm()` this does not restrict
+// to the set of runtime usable features on a foreign OS-arch.
 bool cross_lookup_cpu(const char *arch, const char *cpu_name,
                       CrossFeatureBits &features_out);
 
