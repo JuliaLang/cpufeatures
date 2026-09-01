@@ -49,6 +49,9 @@ std::vector<ParsedTarget> parse_target_string(std::string_view target_str) {
                 t.base = std::atoi(std::string(num_str).c_str());
             } else if (!tok.empty() && (tok[0] == '+' || tok[0] == '-')) {
                 t.extra_features.emplace_back(tok);
+            } else if (!tok.empty()) {
+                // Julia's target syntax treats an omitted prefix as '+'.
+                t.extra_features.emplace_back('+' + std::string(tok));
             }
         }
 
