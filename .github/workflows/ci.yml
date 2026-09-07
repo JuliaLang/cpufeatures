@@ -27,6 +27,8 @@ jobs:
         run: make lib CXX=${{ matrix.compiler }}
       - name: Build and run tests
         run: make test CXX=${{ matrix.compiler }}
+      - name: Compile-check fallback tables
+        run: make check-fallback CXX=${{ matrix.compiler }}
 
   # AArch64 Linux build + test (cross-compiled, test via QEMU)
   build-linux-aarch64:
