@@ -7,6 +7,8 @@
 
 #include <cstdint>
 
+namespace tp {
+
 #define TARGET_FEATURE_WORDS 1
 
 typedef struct { uint64_t bits[1]; } FeatureBits;
@@ -53,5 +55,7 @@ static inline void _expand_entailed_disable_bits(FeatureBits *) {}
 static const FeatureBits hw_feature_mask = {{0}};
 static const FeatureBits llvm_feature_mask = {{0}};
 static const FeatureBits uarch_feature_mask = {{0}};
+
+} // namespace tp
 
 #endif // TARGET_TABLES_FALLBACK_H
