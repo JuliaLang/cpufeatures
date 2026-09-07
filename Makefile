@@ -80,7 +80,7 @@ LIB_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(BUILDDIR)/%.o,$(LIB_SRCS))
 
 STATIC_LIB = $(BUILDDIR)/libtarget_parsing.a
 
-.PHONY: all clean test lib info
+.PHONY: all clean test lib info check-fallback
 
 all: lib
 
@@ -105,6 +105,13 @@ $(BUILDDIR)/test_standalone$(EXE): test_standalone.cpp $(STATIC_LIB) | $(BUILDDI
 
 test: $(BUILDDIR)/test_standalone$(EXE)
 	$(BUILDDIR)/test_standalone$(EXE)
+
+# The fallback tables are selected for every architecture without a generated
+# table, i.e. everything but x86_64/aarch64/riscv64 — none of which CI has a
+# runner for. Compile-check that header against the public API on any host, so
+# the fallback path cannot silently drift out of sync with the generated ones.
+check-fallback: test_fallback_compile.cpp
+	$(CXX) $(CXXFLAGS) -I$(INCDIR) -I$(GENDIR) -fsyntax-only $<
 
 # ============================================================================
 # Coverage build & report (NO LLVM dependency)
