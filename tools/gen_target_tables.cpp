@@ -276,6 +276,8 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
         // Pointer masking configuration, M and S levels (Smmpm/Smnpm/Sspm);
         // "ssnpm" is already above. Supm is user-level, see the blacklist.
         "smmpm", "smnpm", "sspm",
+        // Enhanced physical memory protection (Smepmp)
+        "smepmp",
         // Resumable NMI (Smrnmi)
         "smrnmi",
         // State enable (Smstateen)

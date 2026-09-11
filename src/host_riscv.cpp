@@ -291,27 +291,43 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         static const char *names[] = {
             // vendor extensions: hwprobe reports some of these but
             // we do not probe them yet
+            "xaifet",
             "xandesbfhcvt", "xandesperf", "xandesvbfhcvt", "xandesvdot",
             "xandesvpackfph", "xandesvsinth", "xandesvsintload",
+            "xcheriot",
             "xmipscbop", "xmipscmov", "xmipsexectl", "xmipslsp",
             "xqccmp", "xqci", "xqcia", "xqciac", "xqcibi", "xqcibm",
             "xqcicli", "xqcicm", "xqcics", "xqcicsr", "xqciint", "xqciio",
             "xqcilb", "xqcili", "xqcilia", "xqcilo", "xqcilsm", "xqcisim",
             "xqcisls", "xqcisync",
-            "xsfmm128t", "xsfmm16t", "xsfmm32a16f", "xsfmm32a32f",
+            "xsfcease",
+            "xsfmm128t", "xsfmm16t", "xsfmm32a", "xsfmm32a16f", "xsfmm32a32f",
             "xsfmm32a8f", "xsfmm32a8i", "xsfmm32t", "xsfmm64a64f",
-            "xsfmm64t", "xsfmmbase", "xsfvcp", "xsfvfexp16e", "xsfvfexp32e",
+            "xsfmm64t", "xsfmmbase", "xsfvcp", "xsfvfbfexp16e",
+            "xsfvfexp16e", "xsfvfexp32e",
             "xsfvfexpa", "xsfvfexpa64e", "xsfvfnrclipxfqf",
             "xsfvfwmaccqqq", "xsfvqmaccdod", "xsfvqmaccqoq",
             "xsifivecdiscarddlone", "xsifivecflushdlone", "xsmtvdot",
+            "xsmtvdotii",
+            "xtheadba", "xtheadbb", "xtheadbs", "xtheadcmo", "xtheadcondmov",
+            "xtheadfmemidx", "xtheadmac", "xtheadmemidx", "xtheadmempair",
+            "xtheadsync",
             "xtheadvdot", "xventanacondops", "xwchc",
 
             // LLVM-experimental extensions: these require
             // -menable-experimental-extensions
+            "experimental-p", "experimental-xqccmt",
             "experimental-zicfilp", "experimental-zicfiss",
-            "experimental-zvbc32e", "experimental-zvfbfa",
-            "experimental-zvfofp8min", "experimental-zvkgs",
-            "experimental-zvqdotq",
+            "experimental-zvbc32e", "experimental-zvdot4a8i",
+            "experimental-zvfbdota32f", "experimental-zvfbfa",
+            "experimental-zvfofp8min", "experimental-zvfqwbdota8f",
+            "experimental-zvfqwdota8f", "experimental-zvfwbdota16bf",
+            "experimental-zvfwdota16bf", "experimental-zvkgs",
+            "experimental-zvqwbdota16i", "experimental-zvqwbdota8i",
+            "experimental-zvqwdota16i", "experimental-zvqwdota8i",
+            "experimental-zvvfmm", "experimental-zvvmm",
+            "experimental-zvvmtls", "experimental-zvvmttls",
+            "experimental-zvzip",
 
             // detected via CSR: not implemented yet
             "zvl256b", "zvl512b", "zvl1024b", "zvl2048b", "zvl4096b",
@@ -321,9 +337,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "zifencei",
 
             // no hwprobe bit exists for any of these yet
-            "32bit", "q", "za128rs", "za64rs", "zama16b", "zcmp", "zcmt",
+            "32bit", "e", "q", "za128rs", "za64rs", "zama16b", "zcmp", "zcmt",
             "zdinx", "zfinx", "zhinx", "zhinxmin", "zic64b", "ziccamoa",
-            "ziccif", "zicclsm", "ziccrse", "zkr",
+            "ziccid", "ziccif", "zicclsm", "ziccrse", "zkr",
             nullptr
         };
         return names;

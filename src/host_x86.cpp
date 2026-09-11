@@ -683,9 +683,9 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             // (APX opt-in that LLVM enables on no CPU) are both is_hw=0.
 
             // FIXME: Unimplemented detection
-            "amx-fp8", "amx-tf32", "amx-avx512", "amx-movrs",
-            "avx10.1", "avx10.1-512", "avx10.2", "avx10.2-512",
-            "ccmp", "egpr", "ndd", "nf", "ppx", "push2pop2", "zu",
+            "amx-fp8", "amx-avx512", "amx-movrs",
+            "avx10.1", "avx10.1-512", "avx10.2", "avx10.2-512", "avx512bmm",
+            "ccmp", "egpr", "jmpabs", "ndd", "nf", "ppx", "push2pop2", "zu",
             "lwp", "movrs", "usermsr",
 
             nullptr
