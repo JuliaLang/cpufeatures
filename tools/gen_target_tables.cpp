@@ -23,24 +23,35 @@
 
 using namespace llvm;
 
+// LLVM 23 stores the names as offsets into a string table next to the entries
+#if LLVM_VERSION_MAJOR >= 23
+static StringRef getKey(const SubtargetFeatureKV &F) { return F.key(); }
+static StringRef getDesc(const SubtargetFeatureKV &F) { return F.desc(); }
+static StringRef getKey(const SubtargetSubTypeKV &CPU) { return CPU.key(); }
+#else
+static StringRef getKey(const SubtargetFeatureKV &F) { return F.Key; }
+static StringRef getDesc(const SubtargetFeatureKV &F) { return F.Desc; }
+static StringRef getKey(const SubtargetSubTypeKV &CPU) { return CPU.Key; }
+#endif
+
 static std::unique_ptr<MCSubtargetInfo> getSTI(const Triple &TT) {
     std::string Error;
-    const Target *TheTarget = TargetRegistry::lookupTarget(TT.str(), Error);
+    const Target *TheTarget = TargetRegistry::lookupTarget(TT, Error);
     if (!TheTarget) {
         errs() << "Error: " << Error << "\n";
         return nullptr;
     }
     return std::unique_ptr<MCSubtargetInfo>(
-        TheTarget->createMCSubtargetInfo(TT.str(), "generic", ""));
+        TheTarget->createMCSubtargetInfo(TT, "generic", ""));
 }
 
 // Get features for a specific CPU
 static FeatureBitset getFeaturesForCPU(const Triple &TT, StringRef CPU) {
     std::string Error;
-    const Target *TheTarget = TargetRegistry::lookupTarget(TT.str(), Error);
+    const Target *TheTarget = TargetRegistry::lookupTarget(TT, Error);
     if (!TheTarget) return {};
     auto STI = std::unique_ptr<MCSubtargetInfo>(
-        TheTarget->createMCSubtargetInfo(TT.str(), CPU, ""));
+        TheTarget->createMCSubtargetInfo(TT, CPU, ""));
     if (!STI) return {};
     return STI->getFeatureBits();
 }
@@ -219,7 +230,11 @@ static std::vector<StringRef> getPrivilegedFeatureNamesX86() {
 static std::vector<StringRef> getPrivilegedFeatureNamesAArch64() {
     return {
         // Exception levels / virtualization (Arm ARM D5)
-        "el2vmsa", "el3", "sel2", "vh", "hcx", "nv", "mec", "rme",
+        "el2vmsa", "el3", "sel2", "vh", "nv", "mec", "rme",
+#if LLVM_VERSION_MAJOR < 23
+        // FEAT_HCX; LLVM 23 no longer has a subtarget feature for it
+        "hcx",
+#endif
         // Non-maskable interrupts (EL2/EL3 — FEAT_NMI)
         "nmi",
         // 128-bit page-table descriptors and sysreg ISA (Arm ARM D8 — FEAT_D128)
@@ -261,6 +276,8 @@ static std::vector<StringRef> getPrivilegedFeatureNamesRISCV() {
         // Pointer masking configuration, M and S levels (Smmpm/Smnpm/Sspm);
         // "ssnpm" is already above. Supm is user-level, see the blacklist.
         "smmpm", "smnpm", "sspm",
+        // Enhanced physical memory protection (Smepmp)
+        "smepmp",
         // Resumable NMI (Smrnmi)
         "smrnmi",
         // State enable (Smstateen)
@@ -286,7 +303,7 @@ static FeatureBitset computePrivilegedMask(
     for (StringRef Name : Names) {
         bool Found = false;
         for (const auto &F : Features) {
-            if (F.Key == Name) {
+            if (getKey(F) == Name) {
                 Mask.set(F.Value);
                 Found = true;
                 break;
@@ -329,10 +346,14 @@ static std::vector<StringRef> getFeatureCollectionNamesAArch64() {
 // require that they are actually present (they are treated as tuning bits).
 static std::vector<StringRef> getUArchFeatureNamesAArch64() {
     std::vector<StringRef> Result;
-    for (const llvm::AArch64::ArchInfo *AI : llvm::AArch64::ArchInfos) {
-        // ArchFeature is "+v8.1a" — strip leading "+".
-        Result.push_back(AI->ArchFeature.drop_front());
-    }
+    // ArchFeature is "+v8.1a"; getSubArch() strips the leading "+".
+#if LLVM_VERSION_MAJOR >= 23
+    for (const llvm::AArch64::ArchInfo &AI : llvm::AArch64::ArchInfos)
+        Result.push_back(AI.getSubArch());
+#else
+    for (const llvm::AArch64::ArchInfo *AI : llvm::AArch64::ArchInfos)
+        Result.push_back(AI->getSubArch());
+#endif
     return Result;
 }
 
@@ -364,7 +385,7 @@ static FeatureBitset computeMaskFromNames(
     for (StringRef Name : Names) {
         bool Found = false;
         for (const auto &F : Features) {
-            if (F.Key == Name) {
+            if (getKey(F) == Name) {
                 Mask.set(F.Value);
                 Found = true;
                 break;
@@ -469,10 +490,11 @@ static void emitFeatureTable(raw_ostream &OS,
         nullptr
     };
     for (const auto &F : Features) {
-        if (F.Key[0] && std::isupper(static_cast<unsigned char>(F.Key[0])))
+        StringRef Key = getKey(F);
+        if (!Key.empty() && std::isupper(static_cast<unsigned char>(Key[0])))
             HWMask.reset(F.Value);
         for (const char **bl = blacklist; *bl; bl++) {
-            if (StringRef(F.Key) == *bl) {
+            if (Key == *bl) {
                 HWMask.reset(F.Value);
                 break;
             }
@@ -485,8 +507,8 @@ static void emitFeatureTable(raw_ostream &OS,
         bool IsCollection = FeatureSetMask.test(F.Value);
         bool IsUArch = UArchMask.test(F.Value);
         bool IsPrivileged = PrivilegedMask.test(F.Value);
-        OS << "    { \"" << F.Key << "\", \"";
-        StringRef Desc(F.Desc);
+        OS << "    { \"" << getKey(F) << "\", \"";
+        StringRef Desc = getDesc(F);
         for (char C : Desc) {
             if (C == '"') OS << "\\\"";
             else if (C == '\\') OS << "\\\\";
@@ -542,9 +564,9 @@ static void emitCPUTable(raw_ostream &OS,
     OS << "static const CPUEntry cpu_table[] = {\n";
     for (const auto &CPU : CPUs) {
         // Get the fully resolved features for this CPU
-        FeatureBitset Resolved = getFeaturesForCPU(TT, CPU.Key);
+        FeatureBitset Resolved = getFeaturesForCPU(TT, getKey(CPU));
 
-        OS << "    { \"" << CPU.Key << "\",\n";
+        OS << "    { \"" << getKey(CPU) << "\",\n";
         OS << "      ";
         emitFeatureBits(OS, CPU.Implies.getAsBitset(), NumWords);
         OS << ",\n      ";
@@ -566,7 +588,7 @@ static void emitFeatureEnum(raw_ostream &OS,
     for (const auto &F : Features) {
         // Create a C-safe identifier from the feature name
         std::string Name = "FEAT_";
-        for (char C : StringRef(F.Key)) {
+        for (char C : getKey(F)) {
             if (C == '-' || C == '.') Name += '_';
             else Name += toupper(C);
         }

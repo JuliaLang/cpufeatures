@@ -231,7 +231,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "sve2", "sve-sha3", "sve-sm4",
             "rand", "sm4",
             // No runtime probe support available yet.
-            "cmpbr", "cpa", "lsui", "occmo",
+            "cmpbr", "cpa", "hinte", "lsui", "occmo",
             "faminmax", "lut",
             "fp8", "fp8dot2", "fp8dot4", "fp8fma", "ls64",
             "sme-f8f16", "sme-f8f32",
@@ -369,7 +369,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
             "dit", "ecv", "f16f32dot", "f16f32mm", "f16mm",
             "f8f16mm", "f8f32mm", "faminmax", "flagm",
             "fp16fml", "fp8dot2", "fp8dot4", "fp8fma", "fpac", "fprcvt",
-            "fptoint", "gcs", "hbc", "ls64", "lse128", "lsfe", "lsui", "lut",
+            "fptoint", "gcs", "hbc", "hinte", "ls64", "lse128", "lsfe", "lsui", "lut",
             "mops", "mops-go", "mte", "mtetc", "occmo", "rand",
             "rcpc-immo", "rcpc3", "sb", "sme-mop4", "sme-tmop",
             "sme2p3", "ssve-fexpa", "sve-b16mm", "sve-f16f32mm",
@@ -936,6 +936,7 @@ const char *const *get_host_feature_detection(HostFeatureDetectionKind kind) {
         // grows bits for them.
         static const char *names[] = {
             "cpa",     // FEAT_CPA
+            "hinte",   // extended A64 hint instruction space
             "lsui",    // FEAT_LSUI, kernel keeps the ID field FTR_HIDDEN
             "mops-go", // FEAT_MOPS_GO, "Future Architecture Technologies"
             "mtetc",   // FEAT_MTETC
