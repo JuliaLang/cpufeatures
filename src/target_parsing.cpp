@@ -68,7 +68,8 @@ std::vector<ParsedTarget> parse_target_string(std::string_view target_str) {
 std::vector<ResolvedTarget> resolve_targets(
         const std::vector<ParsedTarget> &parsed,
         const FeatureBits *host_features,
-        const char *host_cpu) {
+        const char *host_cpu,
+        bool mask_undetectable) {
 
     std::vector<ResolvedTarget> result;
     result.reserve(parsed.size());
@@ -101,6 +102,10 @@ std::vector<ResolvedTarget> resolve_targets(
                 const CPUEntry *gen = find_cpu("generic");
                 if (gen) rt.features = gen->features;
             }
+
+            // Before extra_features, so an explicit "+feat" still wins.
+            if (mask_undetectable)
+                apply_detectable_features_mask(&rt.features);
         }
 
         // On 32-bit x86, ignore all features from the table.
@@ -281,7 +286,8 @@ std::vector<LLVMTargetSpec> resolve_targets_for_llvm(
     auto parsed = parse_target_string(target_str);
 
     // 2. Resolve against CPU database
-    auto resolved = resolve_targets(parsed, opts.host_features, opts.host_cpu);
+    auto resolved = resolve_targets(parsed, opts.host_features, opts.host_cpu,
+                                    opts.mask_undetectable);
 
     // 3. Post-process each target
     for (size_t i = 0; i < resolved.size(); i++) {
@@ -455,6 +461,45 @@ void apply_host_baseline(FeatureBits *features) {
         const FeatureEntry *fe = find_feature(*p);
         if (fe) feature_set(features, fe->bit);
     }
+}
+
+// Restrict `features` to a "self-supporting" subset, which is able to enable
+// itself at runtime.
+//
+// This is used for CPU model defaults. If a model is given alone (e.g.
+// `bdver1`) it should imply only features that, if all available at runtime,
+// allow the image to be used / loaded without features beyond the CPU's set.
+void apply_detectable_features_mask(FeatureBits *features) {
+    static const FeatureBits runtime_usable = []() {
+        FeatureBits b{};
+        for (auto kind : {HOST_FEATURE_BASELINE, HOST_FEATURE_DETECTABLE})
+            for (const char *const *p = get_host_feature_detection(kind); *p; p++) {
+                const FeatureEntry *fe = find_feature(*p);
+                if (fe) feature_set(&b, fe->bit);
+            }
+        return b;
+    }();
+
+    // Restrict to `entailed((baseline ∪ detectable) & features)`
+    //
+    // This removes two classes of features unusable at runtime:
+    //   1. UNDETECTABLE feature bit is never enabled at runtime.
+    //   2. Feature bits enabled "by implication only" (i.e. not DETECTABLE,
+    //      UNDETECTABLE, or BASELINE) require "extra" feature bits outside
+    //      of `features` to ever be used at runtime.
+    FeatureBits justified;
+    feature_and_out(&justified, features, &runtime_usable);
+    _expand_entailed_enable_bits(&justified);
+
+    FeatureBits to_disable{};
+    for (unsigned i = 0; i < num_features; i++) {
+        const FeatureEntry &fe = feature_table[i];
+        if (!fe.is_hw || fe.is_featureset || fe.is_privileged) continue;
+        if (!feature_test(features, fe.bit)) continue;
+        if (feature_test(&justified, fe.bit)) continue;
+        feature_set(&to_disable, fe.bit);
+    }
+    apply_feature_delta(features, FeatureBits{}, to_disable);
 }
 
 void apply_host_uarch(FeatureBits *features) {

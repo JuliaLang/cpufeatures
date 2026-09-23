@@ -301,6 +301,129 @@ int main() {
     }
     printf("  OK\n");
 
+    // CPU models may imply defaults that cannot be used at runtime due to gaps in a
+    // platform's feature detection. Windows AArch64 is a major culprit.
+    //
+    // To prevent accidentally generating images that are not usable (on any machine),
+    // target resolution for LLVM must filter CPU model implications for undetectable
+    // features. Essentially, no CPU model should add undetectable default features.
+    //
+    // We continue to respect explicit feature overrides, even when they imply that the
+    // resulting image is never loadable at runtime on this OS-arch combination.
+    printf("\n--- undetectable masking (CPU defaults) ---\n");
+    {
+        // probe_backed = every feature this platform can vouch for at runtime,
+        // either because a probe reports it (detectable) or because the ABI
+        // guarantees it (baseline).
+        tp::FeatureBits probe_backed{};
+        for (auto kind : {tp::HOST_FEATURE_BASELINE, tp::HOST_FEATURE_DETECTABLE})
+            for (const char *const *p = tp::get_host_feature_detection(kind); *p; p++)
+                if (const tp::FeatureEntry *fe = tp::find_feature(*p))
+                    feature_set(&probe_backed, fe->bit);
+
+        tp::ResolveOptions unmasked;
+        unmasked.mask_undetectable = false;
+
+        const char *sample = nullptr, *sample_feat = nullptr;
+        unsigned affected = 0;
+
+        for (unsigned i = 0; i < tp::num_cpus; i++) {
+            const char *name = tp::cpu_table[i].name;
+
+            // The property under test, for every CPU model:
+            //
+            //   { f in en_features : f is a HW leaf }
+            //       is a subset of
+            //   entailed_closure(en_features & probe_backed)
+            //
+            // In words: every hardware feature left enabled is either itself
+            // probe-backed, or entailed by a probe-backed feature that also
+            // survived masking. HW leaf = is_hw, !is_featureset, !is_privileged;
+            // umbrella and privileged bits are excluded because they carry no
+            // instructions of their own and are governed by their members.
+            //
+            // This is strictly stronger than ensuring that the CPU model
+            // implies no UNDETECTABLE feature bits, since it also enforces
+            // removal for feature bits that have no dedicated runtime probe
+            // and which are only indirectly entailed by features not included
+            // in the CPU.
+            auto masked = tp::resolve_targets_for_llvm(name);
+            const tp::FeatureBits &en = masked[0].en_features;
+            tp::FeatureBits justified;
+            feature_and_out(&justified, &en, &probe_backed);
+            _expand_entailed_enable_bits(&justified);
+
+            for (unsigned f = 0; f < tp::num_features; f++) {
+                const tp::FeatureEntry &fe = tp::feature_table[f];
+                if (!fe.is_hw || fe.is_featureset || fe.is_privileged) continue;
+                if (!tp::feature_test(&en, fe.bit)) continue;
+                check(tp::feature_test(&justified, fe.bit),
+                      (std::string("CPU '") + name + "' enables '" + fe.name +
+                       "' with no runtime probe to justify it").c_str());
+            }
+
+            auto raw = tp::resolve_targets_for_llvm(name, unmasked);
+            tp::FeatureBits dropped;
+            feature_andnot(&dropped, &raw[0].en_features, &en);
+            if (!feature_any(&dropped)) continue;
+
+            affected++;
+            if (sample) continue;
+            for (unsigned f = 0; f < tp::num_features; f++) {
+                const tp::FeatureEntry &fe = tp::feature_table[f];
+                if (!fe.is_hw || fe.is_featureset || fe.is_privileged) continue;
+                if (!tp::feature_test(&dropped, fe.bit)) continue;
+                sample = name;
+                sample_feat = fe.name;
+                break;
+            }
+        }
+        printf("  %u/%u CPU models had undetectable defaults masked\n",
+               affected, tp::num_cpus);
+
+        // An explicit "+feat" is a deliberate assertion and must outrank the mask.
+        if (sample && sample_feat) {
+            auto specs = tp::resolve_targets_for_llvm(
+                std::string(sample) + ",+" + sample_feat);
+            check(tp::has_feature(specs[0].en_features, sample_feat),
+                  (std::string("explicit '+") + sample_feat +
+                   "' should override the undetectable mask").c_str());
+            printf("  override probe: %s,+%s\n", sample, sample_feat);
+        }
+
+        // Unlike `resolve_targets_for_llvm()` the cross-platform API (i) does not
+        // carry OS information and (ii) is used to match `-march` thresholds for
+        // binary artifacts, etc.
+        //
+        // Since we do not control codegen for `-march` matches (we're comparing
+        // features to an external GCC / clang `-march` interpretation) we cannot
+        // filter CPU model features by runtime detectability.
+#if defined(__x86_64__) || defined(_M_X64)
+        const char *host_arch = "x86_64";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+        const char *host_arch = "aarch64";
+#elif defined(__riscv) && __riscv_xlen == 64
+        const char *host_arch = "riscv64";
+#else
+        const char *host_arch = nullptr;
+#endif
+        if (sample && sample_feat && host_arch) {
+            tp::CrossFeatureBits cfb;
+            int bit = tp::cross_feature_bit(host_arch, sample_feat);
+            check(tp::cross_lookup_cpu(host_arch, sample, cfb),
+                  "cross_lookup_cpu should find the sampled CPU");
+            check(bit >= 0, "sampled feature should have a cross-arch bit");
+            if (bit >= 0)
+                check((cfb.bits[bit / 64] >> (bit % 64)) & 1,
+                      (std::string("cross_lookup_cpu('") + sample +
+                       "') must still report undetectable '" + sample_feat +
+                       "' — it reports table defaults, not runtime-safe features").c_str());
+            printf("  cross-query unmasked: %s/%s retains %s\n",
+                   host_arch, sample, sample_feat);
+        }
+    }
+    printf("  OK\n");
+
     // Host-specific sysimage tests — calls tp::find_cpu() and
     // resolve_targets_for_llvm() against the host arch's tables, so
     // they need to be #ifdef'd.
