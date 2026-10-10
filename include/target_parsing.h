@@ -184,6 +184,13 @@ const std::string &get_host_cpu_name();
 FeatureBits get_host_features();
 FeatureBits detect_host_features();
 
+// Pick, among `candidates` (a nullptr-terminated list of CPU names), the CPU
+// with the most probeable hardware features that are all present in `host`.
+// Returns nullptr when no candidate fits. Used to name a host whose
+// family/model is newer than the detection tables instead of "generic".
+const char *guess_cpu_name_from_features(const FeatureBits &host,
+                                         const char *const *candidates);
+
 enum HostFeatureDetectionKind {
     // Features the host can probe at runtime.
     HOST_FEATURE_DETECTABLE,
