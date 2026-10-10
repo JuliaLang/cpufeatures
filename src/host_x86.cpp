@@ -295,7 +295,75 @@ static const char *detect_amd_cpu(const CPUModel &m) {
     }
 }
 
+// ============================================================================
+// Fallback for CPUs newer than the model tables above
+// ============================================================================
+
+// Known CPU names per vendor, newest first. When the family/model is not in
+// the tables above (a CPU newer than our tables) we pick the candidate whose
+// hardware feature set is the largest one the host fully supports. This gives
+// LLVM the closest tuning model and callers a meaningful CPU name. Reporting
+// "generic" instead is a poor choice: besides baseline tuning, "generic" is
+// also the name of the baseline target in multi-target system images, so an
+// unknown host would be matched to the baseline clone by name even though
+// its detected features would match a far better one.
+// Names missing from the current table version are skipped.
+static const char *const amd_fallback_cpus[] = {
+    "znver6", "znver5", "znver4", "znver3", "znver2", "znver1",
+    "bdver4", "bdver3", "bdver2", "bdver1", "btver2", "btver1",
+    "amdfam10", "k8-sse3", "k8",
+    nullptr
+};
+
+static const char *const intel_fallback_cpus[] = {
+    // Server
+    "diamondrapids", "graniterapids", "emeraldrapids", "sapphirerapids",
+    "icelake-server", "cooperlake", "cascadelake", "skylake-avx512",
+    // Client
+    "novalake", "pantherlake", "lunarlake", "arrowlake-s", "arrowlake",
+    "meteorlake", "raptorlake", "alderlake", "rocketlake", "tigerlake",
+    "icelake-client", "cannonlake", "skylake", "broadwell", "haswell",
+    "ivybridge", "sandybridge", "westmere", "nehalem", "penryn", "core2",
+    // Atom
+    "clearwaterforest", "sierraforest", "gracemont", "tremont",
+    "goldmont-plus", "goldmont", "silvermont", "bonnell",
+    nullptr
+};
+
 namespace tp {
+
+const char *guess_cpu_name_from_features(const FeatureBits &host,
+                                         const char *const *candidates) {
+    // Only features the host can actually probe for are evidence. Baseline
+    // features, privileged-only features and tuning hints are never probed,
+    // so a candidate must not be rejected (or accepted) because of them.
+    FeatureBits probe_mask{};
+    for (const char *const *p = get_host_feature_detection(HOST_FEATURE_DETECTABLE); *p; p++) {
+        const FeatureEntry *fe = find_feature(*p);
+        if (fe) feature_set(&probe_mask, fe->bit);
+    }
+
+    const char *best = nullptr;
+    unsigned best_count = 0;
+    for (const char *const *p = candidates; *p; p++) {
+        const CPUEntry *cpu = find_cpu(*p);
+        if (!cpu) continue;
+
+        FeatureBits want;
+        feature_and_out(&want, &cpu->features, &probe_mask);
+        FeatureBits missing;
+        feature_andnot(&missing, &want, &host);
+        if (feature_any(&missing)) continue;
+
+        // Ties go to the earlier (newer) candidate.
+        unsigned count = feature_popcount(&want);
+        if (!best || count > best_count) {
+            best = *p;
+            best_count = count;
+        }
+    }
+    return best;
+}
 
 const std::string &get_host_cpu_name() {
     static std::string cpu_name;
@@ -317,6 +385,15 @@ const std::string &get_host_cpu_name() {
 
     if (!find_cpu(name))
         name = "generic";
+
+    if (std::strcmp(name, "generic") == 0 && v != VENDOR_OTHER) {
+        // A CPU newer than our model tables: use the closest known one.
+        FeatureBits host = detect_host_features();
+        const char *const *candidates =
+            v == VENDOR_AMD ? amd_fallback_cpus : intel_fallback_cpus;
+        if (const char *guess = guess_cpu_name_from_features(host, candidates))
+            name = guess;
+    }
 
     cpu_name = name;
 #endif

@@ -229,6 +229,49 @@ int main() {
         }
     }
 
+    printf("\n--- Fallback CPU name from features ---\n");
+    {
+#if defined(__x86_64__) || defined(_M_X64)
+        static const char *const amd[] = {
+            "znver6", "znver5", "znver4", "znver3", "znver2", "znver1", nullptr };
+        static const char *const intel[] = {
+            "sapphirerapids", "icelake-server", "skylake-avx512", "skylake",
+            "haswell", "sandybridge", "nehalem", nullptr };
+        auto expect = [&](const char *cpu, const char *const *cands, const char *want) {
+            const tp::CPUEntry *e = tp::find_cpu(cpu);
+            check(e != nullptr, (std::string("find_cpu(") + cpu + ")").c_str());
+            if (!e) return;
+            const char *got = tp::guess_cpu_name_from_features(e->features, cands);
+            check(got && strcmp(got, want) == 0,
+                  (std::string("features of ") + cpu + " should guess " + want +
+                   " (got " + (got ? got : "null") + ")").c_str());
+        };
+        // A known CPU's own feature set maps back to itself: newer candidates
+        // need features it lacks, older ones have fewer features.
+        expect("znver5", amd, "znver5");
+        expect("znver4", amd, "znver4");
+        expect("znver3", amd, "znver3");
+        expect("haswell", intel, "haswell");
+        expect("skylake-avx512", intel, "skylake-avx512");
+        expect("sapphirerapids", intel, "sapphirerapids");
+        // Candidates not in the table are skipped, not matched.
+        static const char *const bogus[] = { "not-a-cpu", "znver3", nullptr };
+        expect("znver3", bogus, "znver3");
+        // Nothing fits an empty feature set.
+        check(tp::guess_cpu_name_from_features(tp::FeatureBits{}, amd) == nullptr,
+              "empty feature set should not guess a CPU");
+        // Whatever this host is, the guess must be consistent with its features.
+        const char *host_guess_amd = tp::guess_cpu_name_from_features(host_feats, amd);
+        const char *host_guess_intel = tp::guess_cpu_name_from_features(host_feats, intel);
+        printf("  host guess: amd=%s intel=%s (detected name: %s)\n",
+               host_guess_amd ? host_guess_amd : "none",
+               host_guess_intel ? host_guess_intel : "none", host_cpu.c_str());
+        printf("  OK\n");
+#else
+        printf("  SKIP (x86_64 only)\n");
+#endif
+    }
+
     // === 2. Sysimage things ===
 
     // Parse-only Julia CI tests — host-arch-independent. These run the
