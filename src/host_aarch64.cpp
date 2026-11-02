@@ -472,24 +472,52 @@ static const ArmCPUInfo arm_cpus[] = {
     {0x51, 0xc00, "falkor"},
     {0x51, 0xc01, "saphira"},
     // Apple (0x61, on Linux/Asahi)
-    {0x61, 0x020, "apple-m1"},
-    {0x61, 0x021, "apple-m1"},
-    {0x61, 0x022, "apple-m1"},
-    {0x61, 0x023, "apple-m1"},
-    {0x61, 0x024, "apple-m1"},
-    {0x61, 0x025, "apple-m1"},
-    {0x61, 0x028, "apple-m1"},
-    {0x61, 0x029, "apple-m1"},
-    {0x61, 0x030, "apple-m2"},
-    {0x61, 0x031, "apple-m2"},
-    {0x61, 0x032, "apple-m2"},
-    {0x61, 0x033, "apple-m2"},
-    {0x61, 0x034, "apple-m2"},
-    {0x61, 0x035, "apple-m2"},
-    {0x61, 0x038, "apple-m2"},
-    {0x61, 0x039, "apple-m2"},
-    {0x61, 0x048, "apple-m3"},
-    {0x61, 0x049, "apple-m3"},
+    {0x61, 0x020, "apple-a14"},  // H13P Sicily e-Core "Icestorm" used in Apple A14
+    {0x61, 0x021, "apple-a14"},  // H13P Sicily p-Core "Firestorm" used in Apple A14
+    {0x61, 0x022, "apple-m1"},   // H13G Tonga e-Core "Icestorm" used in Apple M1
+    {0x61, 0x023, "apple-m1"},   // H13G Tonga p-Core "Firestorm" used in Apple M1
+    {0x61, 0x024, "apple-m1"},   // H13J Jade Chop e-Core "Icestorm" used in Apple M1 Pro
+    {0x61, 0x025, "apple-m1"},   // H13J Jade Chop p-Core "Firestorm" used in Apple M1 Pro
+    {0x61, 0x028, "apple-m1"},   // H13J Jade Die e-Core "Icestorm" used in Apple M1 Max / Ultra
+    {0x61, 0x029, "apple-m1"},   // H13J Jade Die p-Core "Firestorm" used in Apple M1 Max / Ultra
+    {0x61, 0x030, "apple-a15"},  // H14P Ellis e-Core "Blizzard" used in Apple A15
+    {0x61, 0x031, "apple-a15"},  // H14P Ellis p-Core "Avalanche" used in Apple A15
+    {0x61, 0x032, "apple-m2"},   // H14G Staten e-Core "Blizzard" used in Apple M2
+    {0x61, 0x033, "apple-m2"},   // H14G Staten p-Core "Avalanche" used in Apple M2
+    {0x61, 0x034, "apple-m2"},   // H14S Rhodes Chop e-Core "Blizzard" used in Apple M2 Pro
+    {0x61, 0x035, "apple-m2"},   // H14S Rhodes Chop p-Core "Avalanche" used in Apple M2 Pro
+    {0x61, 0x038, "apple-m2"},   // H14C Rhodes Die e-Core "Blizzard" used in Apple M2 Max / Ultra
+    {0x61, 0x039, "apple-m2"},   // H14C Rhodes Die p-Core "Avalanche" used in Apple M2 Max / Ultra
+    {0x61, 0x040, "apple-a16"},  // H15 Crete e-Core "Sawtooth" used in Apple A16
+    {0x61, 0x041, "apple-a16"},  // H15 Crete p-Core "Everest" used in Apple A16
+    {0x61, 0x042, "apple-m3"},   // H15 Ibiza e-Core "Sawtooth" used in Apple M3
+    {0x61, 0x043, "apple-m3"},   // H15 Ibiza p-Core "Everest" used in Apple M3
+    {0x61, 0x044, "apple-m3"},   // H15 Lobos e-Core "Sawtooth" used in Apple M3 Pro
+    {0x61, 0x045, "apple-m3"},   // H15 Lobos p-Core "Everest" used in Apple M3 Pro
+    {0x61, 0x048, "apple-m3"},   // H15 Palma e-Core "Sawtooth" used in Apple M3 Max
+    {0x61, 0x049, "apple-m3"},   // H15 Palma p-Core "Everest" used in Apple M3 Max
+    {0x61, 0x050, "apple-a17"},  // H15 Coll e-Core "Sawtooth" used in Apple A17 Pro
+    {0x61, 0x051, "apple-a17"},  // H15 Coll p-Core "Everest" used in Apple A17 Pro
+    {0x61, 0x052, "apple-m4"},   // H16G Donan e-Core used in Apple M4
+    {0x61, 0x053, "apple-m4"},   // H16H Donan p-Core used in Apple M4
+    {0x61, 0x054, "apple-m4"},   // H16S Brava S e-Core used in Apple M4 Pro
+    {0x61, 0x055, "apple-m4"},   // H16S Brava S p-Core used in Apple M4 Pro
+    {0x61, 0x058, "apple-m4"},   // H16C Brava C e-Core used in Apple M4 Max
+    {0x61, 0x059, "apple-m4"},   // H16C Brava C p-Core used in Apple M4 Max
+    {0x61, 0x060, "apple-a18"},  // H17P Tahiti e-Core used in Apple A18 Pro
+    {0x61, 0x061, "apple-a18"},  // H17P Tahiti p-Core used in Apple A18 Pro
+    {0x61, 0x06a, "apple-a18"},  // H17A Tupai e-Core used in Apple A18
+    {0x61, 0x06b, "apple-a18"},  // H17A Tupai p-Core used in Apple A18
+    {0x61, 0x062, "apple-m5"},   // H17G Hidra e-Core used in Apple M5
+    {0x61, 0x063, "apple-m5"},   // H17G Hidra p-Core used in Apple M5
+    {0x61, 0x064, "apple-m5"},   // H17S Sotra S m-Core used in Apple M5 Pro
+    {0x61, 0x065, "apple-m5"},   // H17S Sotra S p-Core used in Apple M5 Pro
+    {0x61, 0x068, "apple-m5"},   // H17C Sotra C m-Core used in Apple M5 Max
+    {0x61, 0x069, "apple-m5"},   // H17C Sotra C p-Core used in Apple M5 Max
+    {0x61, 0x070, "apple-a19"},  // H18P Thera e-Core used in Apple A19 Pro
+    {0x61, 0x071, "apple-a19"},  // H18P Thera p-Core used in Apple A19 Pro
+    {0x61, 0x07a, "apple-a19"},  // H18A Tilos e-Core used in Apple A19
+    {0x61, 0x07b, "apple-a19"},  // H18A Tilos p-Core used in Apple A19
     // Microsoft (0x6d)
     {0x6d, 0xd49, "neoverse-n2"},  // Azure Cobalt 100
     // Ampere (0xc0)
