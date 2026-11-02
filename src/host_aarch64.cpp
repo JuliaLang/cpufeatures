@@ -43,8 +43,8 @@
 #define CPUFAMILY_ARM_THERA              0xab345f09 // A19 Pro
 #define CPUFAMILY_ARM_TILOS              0x01d7a72b // A19
 #define CPUFAMILY_ARM_KOMODO             0x6d0ccb0c // M6
-#define CPUFAMILY_ARM_BORNEO             0x7db56df1 //
-#define CPUFAMILY_ARM_NEVIS              0x37652b0c //
+#define CPUFAMILY_ARM_BORNEO             0x7db56df1 // A20 Pro
+// #define CPUFAMILY_ARM_NEVIS              0x37652b0c // ?
 
 namespace tp {
 
@@ -80,9 +80,10 @@ const std::string &get_host_cpu_name() {
     case CPUFAMILY_ARM_TILOS:
         name = "apple-a19"; break;
     case CPUFAMILY_ARM_KOMODO:
+        // name = "apple-m6"; break; // Uncomment once apple-m6 in LLVM
     case CPUFAMILY_ARM_BORNEO:
-    case CPUFAMILY_ARM_NEVIS:
-        name = "apple-m5"; break; // Change to apple-m6 once in LLVM
+    // case CPUFAMILY_ARM_NEVIS: // Uncomment once released and confirmed
+        // name = "apple-a20"; break; // Uncomment once apple-a20 in LLVM
     default:
         name = "apple-m5"; break;
     }
