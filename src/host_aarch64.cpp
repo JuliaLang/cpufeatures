@@ -52,6 +52,9 @@ const std::string &get_host_cpu_name() {
     static std::string cpu_name;
     if (!cpu_name.empty()) return cpu_name;
 
+    // Newest CPU we know about; matches LLVM's fallback for unknown families.
+    constexpr const char *fallback_cpu = "apple-m5";
+
     uint32_t family = 0;
     size_t len = sizeof(family);
     sysctlbyname("hw.cpufamily", &family, &len, NULL, 0);
@@ -85,12 +88,12 @@ const std::string &get_host_cpu_name() {
     // case CPUFAMILY_ARM_NEVIS: // Uncomment once released and confirmed
         // name = "apple-a20"; break; // Uncomment once apple-a20 in LLVM
     default:
-        name = "apple-m5"; break;
+        name = fallback_cpu; break;
     }
 
     // Resolve alias and verify the CPU exists in the table.
     if (!find_cpu(name)) {
-        name = "apple-m5";
+        name = fallback_cpu;
     }
 
     cpu_name = name;
