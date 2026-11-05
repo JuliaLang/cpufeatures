@@ -128,7 +128,7 @@ jobs:
       - name: Build and test
         uses: vmactions/freebsd-vm@v1
         with:
-          release: "13.4"
+          release: "14.1"
           arch: x86_64
           cpu: 2
           mem: 8192
