@@ -77,12 +77,12 @@ const std::string &get_host_cpu_name() {
     case CPUFAMILY_ARM_TILOS:
         name = "apple-a19"; break;
     default:
-        name = "apple-m1"; break;
+        name = "apple-m5"; break;
     }
 
     // Resolve alias and verify the CPU exists in the table.
     if (!find_cpu(name)) {
-        name = "apple-m1";
+        name = "apple-m5";
     }
 
     cpu_name = name;
