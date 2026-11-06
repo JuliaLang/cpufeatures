@@ -20,6 +20,7 @@ inline const char *resolve_cpu_alias(const char *name) {
         {"apple-m3", "apple-a16"},
         {"apple-a18", "apple-m4"},
         {"apple-a19", "apple-m5"},
+        {"apple-a20", "apple-m6"},
     };
     for (const auto &a : aliases)
         if (sv == a.from) return a.to;
