@@ -411,12 +411,12 @@ static constexpr CPUIDBitMapping cpuid_features[] = {
     {7, 1, CPUIDBitMapping::EAX, 21, "amx-fp16"},
     {7, 1, CPUIDBitMapping::EAX, 23, "avxifma"},
 
-    // Leaf 7 sub 1, EBX
-    {7, 1, CPUIDBitMapping::EBX,  4, "avxvnniint8"},
-    {7, 1, CPUIDBitMapping::EBX,  5, "avxneconvert"},
-    {7, 1, CPUIDBitMapping::EBX,  8, "amx-complex"},
-    {7, 1, CPUIDBitMapping::EBX, 10, "avxvnniint16"},
-    {7, 1, CPUIDBitMapping::EBX, 14, "prefetchi"},
+    // Leaf 7 sub 1, EDX
+    {7, 1, CPUIDBitMapping::EDX,  4, "avxvnniint8"},
+    {7, 1, CPUIDBitMapping::EDX,  5, "avxneconvert"},
+    {7, 1, CPUIDBitMapping::EDX,  8, "amx-complex"},
+    {7, 1, CPUIDBitMapping::EDX, 10, "avxvnniint16"},
+    {7, 1, CPUIDBitMapping::EDX, 14, "prefetchi"},
 
     // Extended 0x80000001, ECX
     {0x80000001, 0, CPUIDBitMapping::ECX,  0, "sahf"},
@@ -505,6 +505,13 @@ static FeatureBits compute_features_on_current_core(const FeatureBits &baseline)
             feature_set(&to_enable, f->bit);
         else
             feature_set(&to_disable, f->bit);
+    }
+
+    // AMD reports prefetchi in 0x80000021 EAX[20] instead of leaf 7 sub 1.
+    if (cpuid_bit(0x80000021, 0, 'a', 20)) {
+        unsigned bit = find_feature("prefetchi")->bit;
+        feature_set(&to_enable, bit);
+        feature_clear(&to_disable, bit);
     }
 
     // XCR0 validation: the OS must enable state save for AVX/AVX-512/AMX.
