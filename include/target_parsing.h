@@ -165,6 +165,10 @@ std::vector<uint8_t> serialize_targets(const std::vector<LLVMTargetSpec> &target
 // Deserialize targets from binary data (expects count header from serialize_targets)
 std::vector<LLVMTargetSpec> deserialize_targets(const uint8_t *data);
 
+// Deserialize targets from data of len bytes, which may be damaged. Returns false if the
+// data does not hold exactly the targets it describes, and never reads past its end.
+bool deserialize_targets(const uint8_t *data, size_t len, std::vector<LLVMTargetSpec> &out);
+
 // Result of target matching
 struct TargetMatch {
     int best_idx = -1;

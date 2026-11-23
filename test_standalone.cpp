@@ -301,6 +301,37 @@ int main() {
     }
     printf("  OK\n");
 
+    printf("\n--- Deserializing damaged target data ---\n");
+    {
+        std::vector<tp::LLVMTargetSpec> specs(2);
+        specs[0].cpu_name = "generic";
+        specs[1].cpu_name = "native";
+        specs[1].ext_features = "+foo";
+        specs[1].base = 0;
+        auto blob = tp::serialize_targets(specs);
+        std::vector<tp::LLVMTargetSpec> out;
+        check(tp::deserialize_targets(blob.data(), blob.size(), out) && out.size() == 2 &&
+              out[1].cpu_name == "native" && out[1].ext_features == "+foo",
+              "bounded read of intact data");
+        for (size_t n = 0; n < blob.size(); n++) {
+            std::vector<uint8_t> cut(blob.begin(), blob.begin() + n);
+            check(!tp::deserialize_targets(cut.data(), cut.size(), out),
+                  ("data cut to " + std::to_string(n) + " bytes should be rejected").c_str());
+        }
+        auto longer = blob;
+        longer.push_back(0);
+        check(!tp::deserialize_targets(longer.data(), longer.size(), out),
+              "data with a byte left over should be rejected");
+        // the target count, the first feature word count, the last string length
+        for (size_t off : {size_t(0), size_t(12), blob.size() - 8}) {
+            auto bad = blob;
+            bad[off + 3] = 0x7f;
+            check(!tp::deserialize_targets(bad.data(), bad.size(), out),
+                  ("huge count at offset " + std::to_string(off) + " should be rejected").c_str());
+        }
+    }
+    printf("  OK\n");
+
     // Host-specific sysimage tests — calls tp::find_cpu() and
     // resolve_targets_for_llvm() against the host arch's tables, so
     // they need to be #ifdef'd.
