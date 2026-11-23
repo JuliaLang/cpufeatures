@@ -355,46 +355,71 @@ std::vector<uint8_t> serialize_targets(const std::vector<LLVMTargetSpec> &target
     return buf;
 }
 
-std::vector<LLVMTargetSpec> deserialize_targets(const uint8_t *data) {
-    auto load = [&](void *dest, size_t sz) {
-        std::memcpy(dest, data, sz);
+// Stops and returns false instead of reading more than len bytes.
+static bool read_targets(const uint8_t *data, size_t len, std::vector<LLVMTargetSpec> &result,
+                         size_t *left_over) {
+    auto skip = [&](uint64_t sz) {
+        if (sz > len)
+            return false;
         data += sz;
+        len -= sz;
+        return true;
     };
-    auto load_u32 = [&]() -> uint32_t {
-        uint32_t v;
-        load(&v, 4);
-        return v;
+    auto load = [&](void *dest, size_t sz) {
+        if (sz > len)
+            return false;
+        std::memcpy(dest, data, sz);
+        return skip(sz);
     };
-    auto load_str = [&]() -> std::string {
-        uint32_t len = load_u32();
-        std::string s(reinterpret_cast<const char*>(data), len);
-        data += len;
-        return s;
+    auto load_u32 = [&](uint32_t &v) { return load(&v, 4); };
+    auto load_str = [&](std::string &s) {
+        uint32_t n;
+        if (!load_u32(n) || n > len)
+            return false;
+        s.assign(reinterpret_cast<const char*>(data), n);
+        return skip(n);
     };
 
-    uint32_t ntargets = load_u32();
-    std::vector<LLVMTargetSpec> result(ntargets);
-
+    result.clear();
+    uint32_t ntargets;
+    if (!load_u32(ntargets))
+        return false;
+    // grow as the data is read, since a damaged count can be huge
     for (uint32_t i = 0; i < ntargets; i++) {
-        auto &t = result[i];
-        t.flags = load_u32();
-        t.base = static_cast<int>(load_u32());
-        uint32_t nwords = load_u32();
+        LLVMTargetSpec t;
+        uint32_t base, nwords;
+        if (!load_u32(t.flags) || !load_u32(base) || !load_u32(nwords))
+            return false;
+        t.base = static_cast<int>(base);
         // Read feature bits, handle size mismatch gracefully
         std::memset(&t.en_features, 0, sizeof(t.en_features));
         std::memset(&t.dis_features, 0, sizeof(t.dis_features));
         unsigned words_to_read = nwords < TARGET_FEATURE_WORDS ? nwords : TARGET_FEATURE_WORDS;
-        load(t.en_features.bits, words_to_read * sizeof(uint64_t));
-        if (nwords > TARGET_FEATURE_WORDS)
-            data += (nwords - TARGET_FEATURE_WORDS) * sizeof(uint64_t);
-        load(t.dis_features.bits, words_to_read * sizeof(uint64_t));
-        if (nwords > TARGET_FEATURE_WORDS)
-            data += (nwords - TARGET_FEATURE_WORDS) * sizeof(uint64_t);
-        t.cpu_name = load_str();
-        t.ext_features = load_str();
+        uint64_t extra = uint64_t(nwords - words_to_read) * sizeof(uint64_t);
+        if (!load(t.en_features.bits, words_to_read * sizeof(uint64_t)) || !skip(extra) ||
+            !load(t.dis_features.bits, words_to_read * sizeof(uint64_t)) || !skip(extra))
+            return false;
+        if (!load_str(t.cpu_name) || !load_str(t.ext_features))
+            return false;
+        result.push_back(std::move(t));
     }
+    if (left_over)
+        *left_over = len;
+    return true;
+}
 
+std::vector<LLVMTargetSpec> deserialize_targets(const uint8_t *data) {
+    std::vector<LLVMTargetSpec> result;
+    read_targets(data, SIZE_MAX, result, nullptr);
     return result;
+}
+
+bool deserialize_targets(const uint8_t *data, size_t len, std::vector<LLVMTargetSpec> &result) {
+    size_t left_over;
+    if (read_targets(data, len, result, &left_over) && left_over == 0)
+        return true;
+    result.clear();
+    return false;
 }
 
 // ============================================================================
